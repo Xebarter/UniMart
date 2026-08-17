@@ -65,3 +65,16 @@ export function publicAvatarUrl(storagePath: string) {
   if (!base) return storagePath
   return `${base}/storage/v1/object/public/avatars/${storagePath}`
 }
+
+export function isUploadedAvatar(url?: string | null) {
+  return Boolean(url && url.includes('/storage/v1/object/public/avatars/'))
+}
+
+export function authPhotoUrl(user: User) {
+  const meta = (user.user_metadata ?? {}) as Record<string, unknown>
+  for (const key of ['avatar_url', 'picture', 'photoURL', 'photo_url']) {
+    const value = meta[key]
+    if (typeof value === 'string' && /^https?:\/\//i.test(value)) return value
+  }
+  return null
+}

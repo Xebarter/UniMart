@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { jsonError, jsonOk, parseJson } from '@/lib/api/http'
+import { isUploadedAvatar, jsonError, jsonOk, parseJson } from '@/lib/api/http'
 
 export const runtime = 'nodejs'
 
@@ -11,6 +11,7 @@ type FirebaseLookup = {
     email?: string
     displayName?: string
     photoUrl?: string
+    photoURL?: string
     emailVerified?: boolean
   }[]
   error?: { message?: string }
@@ -44,17 +45,46 @@ export async function POST(request: Request) {
 
     const admin = createAdminClient()
     const displayName = firebaseUser.displayName || email.split('@')[0]
-    const { error: createError } = await admin.auth.admin.createUser({
+    const photoUrl = firebaseUser.photoUrl || firebaseUser.photoURL || null
+    const { data: created, error: createError } = await admin.auth.admin.createUser({
       email,
       email_confirm: true,
       user_metadata: {
         display_name: displayName,
-        avatar_url: firebaseUser.photoUrl ?? null,
+        avatar_url: photoUrl,
+        picture: photoUrl,
         firebase_uid: firebaseUser.localId,
       },
     })
     if (createError && !/already been registered|already exists/i.test(createError.message)) {
       return jsonError('Unable to create your UniMart account.', 400)
+    }
+
+    const existing = created?.user
+      ? { user: created.user }
+      : (await admin.auth.admin.getUserByEmail(email)).data
+    const userId = existing.user?.id
+    if (userId && photoUrl) {
+      const metadata = existing.user?.user_metadata ?? {}
+      await admin.auth.admin.updateUserById(userId, {
+        user_metadata: {
+          ...metadata,
+          display_name: metadata.display_name || displayName,
+          avatar_url: metadata.avatar_url || photoUrl,
+          picture: metadata.picture || photoUrl,
+          firebase_uid: firebaseUser.localId,
+        },
+      })
+      const { data: profile } = await admin.from('profiles').select('avatar_url').eq('id', userId).maybeSingle()
+      if (!profile) {
+        await admin.from('profiles').insert({
+          id: userId,
+          display_name: existing.user?.user_metadata?.display_name || displayName,
+          avatar_url: photoUrl,
+        })
+      } else if (!isUploadedAvatar(profile.avatar_url)) {
+        await admin.from('profiles').update({ avatar_url: photoUrl }).eq('id', userId)
+      }
     }
 
     const { data: link, error: linkError } = await admin.auth.admin.generateLink({

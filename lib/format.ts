@@ -1,4 +1,4 @@
-import type { Listing, ListingCategory } from '@/lib/types'
+import type { Listing, ListingCategory, RentPeriod } from '@/lib/types'
 
 export function formatUGX(amount: number, currency = 'UGX') {
   const value = Number.isFinite(amount) ? Math.round(amount) : 0
@@ -50,19 +50,49 @@ export function listingTag(listing: Listing) {
   return undefined
 }
 
+function mediaUrl(item: NonNullable<Listing['listing_media']>[number]) {
+  if (item.public_url) return item.public_url
+  if (!item.storage_path) return ''
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL
+  return base ? `${base}/storage/v1/object/public/listing-media/${item.storage_path}` : ''
+}
+
+export function listingPhotos(listing: Listing) {
+  const media = [...(listing.listing_media ?? [])].sort((a, b) => a.sort_order - b.sort_order)
+  const urls = media.map(mediaUrl).filter(Boolean)
+  return urls.length ? urls : [categoryGradient(listing.category)]
+}
+
 export function listingImage(listing: Listing) {
-  const media = listing.listing_media?.[0]
-  if (media?.public_url) return media.public_url
-  const path = media?.storage_path
-  if (path) {
-    const base = process.env.NEXT_PUBLIC_SUPABASE_URL
-    if (base) return `${base}/storage/v1/object/public/listing-media/${path}`
-  }
-  return categoryGradient(listing.category)
+  return listingPhotos(listing)[0]
+}
+
+export function conditionLabel(value?: string | null) {
+  if (!value) return null
+  if (value === 'like new') return 'Like new'
+  return value.charAt(0).toUpperCase() + value.slice(1)
 }
 
 export function isCategory(value: string): value is ListingCategory {
   return value === 'Products' || value === 'Services' || value === 'Rentals' || value === 'Gigs'
+}
+
+export function isRentPeriod(value: string): value is RentPeriod {
+  return value === 'day' || value === 'week' || value === 'month'
+}
+
+export function rentPeriodLabel(period?: string | null) {
+  if (period === 'day') return 'Per day'
+  if (period === 'week') return 'Per week'
+  if (period === 'month') return 'Per month'
+  return null
+}
+
+export function rentPeriodSuffix(period?: string | null) {
+  if (period === 'day') return '/ day'
+  if (period === 'week') return '/ week'
+  if (period === 'month') return '/ month'
+  return null
 }
 
 export function timeAgo(value: string) {

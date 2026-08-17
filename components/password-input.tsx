@@ -9,12 +9,14 @@ export function PasswordInput({
   required,
   minLength,
   autoComplete = 'current-password',
+  className,
 }: {
   value: string
   onChange: (value: string) => void
   required?: boolean
   minLength?: number
   autoComplete?: string
+  className?: string
 }) {
   const [visible, setVisible] = useState(false)
 
@@ -27,7 +29,7 @@ export function PasswordInput({
         value={value}
         autoComplete={autoComplete}
         onChange={(event) => onChange(event.target.value)}
-        className="h-11 w-full rounded-xl border border-input bg-background px-3 pr-11 outline-none focus:ring-2 focus:ring-ring"
+        className={className ?? 'h-11 w-full rounded-xl border border-input bg-background px-3 pr-11 outline-none focus:ring-2 focus:ring-ring'}
       />
       <button
         type="button"

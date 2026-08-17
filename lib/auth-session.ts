@@ -30,9 +30,9 @@ export async function ensureBrowserSession() {
   return again
 }
 
-export async function signOutUniMart() {
+export async function signOutUniMart(scope: 'local' | 'global' = 'local') {
   const supabase = createClient()
-  await supabase.auth.signOut({ scope: 'local' })
+  await supabase.auth.signOut({ scope })
   try {
     const { signOut } = await import('firebase/auth')
     await signOut(getFirebaseAuth())

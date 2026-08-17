@@ -12,14 +12,15 @@ export async function POST(request: Request) {
   const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg'
   if (!['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(extension)) return jsonError('Use JPG, PNG, WEBP, or GIF.')
 
-  if (kind === 'avatar') {
+  if (kind === 'avatar' || kind === 'shop-cover') {
     const path = `${auth.user.id}/${crypto.randomUUID()}.${extension}`
     const { error: uploadError } = await auth.supabase.storage.from('avatars').upload(path, file, { contentType: file.type, upsert: false })
     if (uploadError) return jsonError('Unable to upload image.')
-    const avatarUrl = publicAvatarUrl(path)
-    const { data, error } = await auth.supabase.from('profiles').update({ avatar_url: avatarUrl }).eq('id', auth.user.id).select().single()
+    const url = publicAvatarUrl(path)
+    if (kind === 'shop-cover') return jsonOk({ url }, 201)
+    const { data, error } = await auth.supabase.from('profiles').update({ avatar_url: url }).eq('id', auth.user.id).select().single()
     if (error) return dbError(error, 'Unable to save avatar.', 400)
-    return jsonOk({ data, url: avatarUrl }, 201)
+    return jsonOk({ data, url }, 201)
   }
 
   if (!listingId) return jsonError('A file and listing_id are required.')

@@ -9,18 +9,19 @@ import { marketPaths } from '@/lib/market-paths'
 export default function EditListingPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
-  const { profile, loading, requestShop, myListings, updateMyListing } = useMarket()
+  const { profile, loading, requestPost, myListings, updateMyListing, myShop } = useMarket()
   const listing = myListings.find((item) => item.id === id)
+  const back = myShop ? marketPaths.shop : marketPaths.post
 
   useEffect(() => {
     if (loading) return
-    if (!profile) requestShop()
-  }, [loading, profile, requestShop])
+    if (!profile) requestPost()
+  }, [loading, profile, requestPost])
 
   useEffect(() => {
     if (loading || !profile || !id) return
-    if (!listing || listing.owner_id !== profile.id) router.replace(marketPaths.post)
-  }, [id, listing, loading, profile, router])
+    if (!listing || listing.owner_id !== profile.id) router.replace(back)
+  }, [back, id, listing, loading, profile, router])
 
   if (!profile || !listing || listing.owner_id !== profile.id) return null
 
@@ -29,10 +30,10 @@ export default function EditListingPage() {
       key={listing.id}
       listing={listing}
       profile={profile}
-      onBack={() => router.push(marketPaths.post)}
+      onBack={() => router.push(back)}
       onCreated={async (next) => {
         updateMyListing(next)
-        router.push(`${marketPaths.post}?published=${next.id}`)
+        router.push(marketPaths.listing(next.id))
       }}
       onSeeLive={(next) => router.push(marketPaths.listing(next.id))}
     />

@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { dbError, jsonError, jsonOk, parseJson, requireUser } from '@/lib/api/http'
-import { isCategory } from '@/lib/format'
+import { isCategory, isRentPeriod } from '@/lib/format'
 
 const LISTING_SELECT = '*, listing_media(*), profiles:owner_id(id, display_name, university, campus, avatar_url, verified)'
 
@@ -59,6 +59,9 @@ export async function POST(request: Request) {
   if (!title || title.length > 120) return jsonError('A title up to 120 characters is required.')
   if (!isCategory(category)) return jsonError('Choose Products, Services, Rentals, or Gigs.')
   if (!Number.isFinite(price) || price < 0) return jsonError('A valid price is required.')
+  const rentPeriod = category === 'Rentals'
+    ? (typeof body.rent_period === 'string' && isRentPeriod(body.rent_period) ? body.rent_period : 'month')
+    : null
   const { data, error } = await auth.supabase
     .from('listings')
     .insert({
@@ -69,6 +72,7 @@ export async function POST(request: Request) {
       price,
       location,
       condition: typeof body.condition === 'string' ? body.condition : 'good',
+      rent_period: rentPeriod,
       status: 'active',
     })
     .select(LISTING_SELECT)

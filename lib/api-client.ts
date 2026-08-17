@@ -1,4 +1,4 @@
-import type { AdminStats, Article, Conversation, Listing, Message, Notification, Profile, Report } from '@/lib/types'
+import type { AdminStats, Article, Conversation, FollowedProfile, Listing, Message, Notification, Profile, Report, Shop } from '@/lib/types'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -26,7 +26,7 @@ export const api = {
     request<{ data: Listing }>(`/api/listings/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteListing: (id: string) =>
     request<{ archived: boolean }>(`/api/listings/${id}`, { method: 'DELETE' }),
-  profile: () => request<{ data: Profile | null; user: { id: string; email?: string } }>('/api/profile'),
+  profile: () => request<{ data: Profile | null; user: { id: string; email?: string; providers?: string[] } }>('/api/profile'),
   updateProfile: (body: Record<string, unknown>) =>
     request<{ data: Profile }>('/api/profile', { method: 'PATCH', body: JSON.stringify(body) }),
   favorites: () => request<{ data: { listing_id: string; listings: Listing | null }[] }>('/api/favorites'),
@@ -53,7 +53,15 @@ export const api = {
     request('/api/follows', { method: 'POST', body: JSON.stringify({ following_id }) }),
   unfollow: (following_id: string) =>
     request('/api/follows', { method: 'DELETE', body: JSON.stringify({ following_id }) }),
-  follows: () => request<{ data: Profile[] }>('/api/follows'),
+  follows: () => request<{ data: FollowedProfile[] }>('/api/follows'),
+  shop: () => request<{ data: Shop | null }>('/api/shops'),
+  shopByOwner: (ownerId: string) => request<{ data: Shop | null }>(`/api/shops?owner_id=${ownerId}`),
+  shopBySlug: (slug: string) =>
+    request<{ data: Shop; listings: Listing[]; follower_count: number; following: boolean }>(`/api/shops/${slug}`),
+  createShop: (body: Record<string, unknown>) =>
+    request<{ data: Shop }>('/api/shops', { method: 'POST', body: JSON.stringify(body) }),
+  updateShop: (body: Record<string, unknown>) =>
+    request<{ data: Shop }>('/api/shops', { method: 'PATCH', body: JSON.stringify(body) }),
   checkout: (body: { listing_id: string; method: 'mobile_money' | 'card' }) =>
     request<{ checkout_url: string }>('/api/payments/checkout', { method: 'POST', body: JSON.stringify(body) }),
   adminStats: () => request<{ data: AdminStats }>('/api/admin/stats'),
@@ -76,6 +84,24 @@ export const api = {
     const response = await fetch('/api/media', { method: 'POST', body: form, credentials: 'include' })
     const payload = (await response.json().catch(() => ({}))) as { error?: string }
     if (!response.ok) throw new Error(payload.error || 'Unable to upload image.')
+    return payload
+  },
+  uploadAvatar: async (file: File) => {
+    const form = new FormData()
+    form.set('kind', 'avatar')
+    form.set('file', file)
+    const response = await fetch('/api/media', { method: 'POST', body: form, credentials: 'include' })
+    const payload = (await response.json().catch(() => ({}))) as { data?: Profile; url?: string; error?: string }
+    if (!response.ok) throw new Error(payload.error || 'Unable to upload photo.')
+    return payload
+  },
+  uploadShopCover: async (file: File) => {
+    const form = new FormData()
+    form.set('kind', 'shop-cover')
+    form.set('file', file)
+    const response = await fetch('/api/media', { method: 'POST', body: form, credentials: 'include' })
+    const payload = (await response.json().catch(() => ({}))) as { url?: string; error?: string }
+    if (!response.ok) throw new Error(payload.error || 'Unable to upload cover.')
     return payload
   },
 }

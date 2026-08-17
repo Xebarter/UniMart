@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   const { data, error } = await auth.supabase.from('payments').select('*').eq('id', paymentId).eq('user_id', auth.user.id).maybeSingle()
   if (error) return dbError(error, 'Unable to load payment.')
   if (!data) return jsonError('Payment not found.', 404)
-  const publicData = { id: data.id, status: data.status, amount: data.amount, currency: data.currency }
+  const publicData = { id: data.id, status: data.status, amount: data.amount, currency: data.currency, purpose: data.purpose, listing_id: data.listing_id }
   if (data.status === 'paid') return jsonOk({ data: publicData })
 
   try {

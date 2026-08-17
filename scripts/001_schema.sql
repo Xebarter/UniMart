@@ -711,6 +711,7 @@ values
   )
 on conflict (slug) do nothing;
 
--- Promote an account after you sign up:
+-- Promote the first admin after you sign up (run both lines together):
+-- select set_config('unimart.allow_role_change', 'on', true);
 -- update public.profiles set role = 'admin' where id = '<your-user-uuid>';
 -- After the first admin exists, promote others from the admin dashboard Users tab.

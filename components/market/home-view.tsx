@@ -2,22 +2,25 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ArrowUpRight, BookOpen, ChevronRight, Filter, Plus, Store, TrendingUp } from 'lucide-react'
+import { ArrowUpRight, BookOpen, ChevronRight, Filter, Store, TrendingUp } from 'lucide-react'
 import { ListingCard } from '@/components/market/listing-card'
 import { useMarket } from '@/components/market/provider'
 import { readTime } from '@/lib/format'
 import { marketPaths } from '@/lib/market-paths'
-import type { ListingCategory } from '@/lib/types'
+import { rankListings, type MarketCategory } from '@/lib/search'
 
-type Category = 'All' | ListingCategory
+const CATEGORIES: MarketCategory[] = ['All', 'Products', 'Services', 'Rentals', 'Gigs']
+const PREVIEW_COUNT = 8
 
 export function HomeView() {
-  const { query, listings, articles, saved, toggleSaved, loading, requestPost } = useMarket()
-  const [category, setCategory] = useState<Category>('All')
-  const filtered = useMemo(
-    () => listings.filter((item) => (category === 'All' || item.category === category) && `${item.title} ${item.profiles?.display_name ?? ''} ${item.location}`.toLowerCase().includes(query.toLowerCase())),
-    [category, query, listings],
-  )
+  const { query, category, setCategory, listings, articles, saved, toggleSaved, loading, requestPost, requestShop } = useMarket()
+  const [showAll, setShowAll] = useState(false)
+  const filtered = useMemo(() => {
+    const ranked = rankListings(listings, query)
+    return category === 'All' ? ranked : ranked.filter((item) => item.category === category)
+  }, [category, query, listings])
+  const searching = Boolean(query.trim())
+  const visible = searching || showAll ? filtered : filtered.slice(0, PREVIEW_COUNT)
 
   return (
     <div className="mx-auto w-full max-w-[1180px] px-4 py-5 sm:px-8 sm:py-8 lg:px-10">
@@ -44,27 +47,45 @@ export function HomeView() {
           <Link href={marketPaths.explore} className="hidden shrink-0 items-center gap-1 text-xs font-bold text-[#6a8179] sm:flex">Browse all <ChevronRight size={15} /></Link>
         </div>
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 no-scrollbar sm:mx-0 sm:px-0">
-          {(['All', 'Products', 'Services', 'Rentals', 'Gigs'] as Category[]).map((item) => (
-            <button key={item} onClick={() => setCategory(item)} className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-xs font-bold transition ${category === item ? 'bg-[#315e55] text-white' : 'border border-[#e3eae6] bg-white text-[#75847f] hover:border-[#b8d1c9]'}`}>{item}</button>
+          {CATEGORIES.map((item) => (
+            <button key={item} type="button" onClick={() => { setCategory(item); setShowAll(false) }} className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-xs font-bold transition ${category === item ? 'bg-[#315e55] text-white' : 'border border-[#e3eae6] bg-white text-[#75847f] hover:border-[#b8d1c9]'}`}>{item}</button>
           ))}
         </div>
       </section>
       <section className="mt-6 sm:mt-7">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="font-display text-lg font-bold tracking-[-0.025em] text-[#29463f] sm:text-xl">Fresh on campus</h2>
-            <p className="mt-1 text-xs text-[#95a19d]">Listings from your university community</p>
+            <h2 className="font-display text-lg font-bold tracking-[-0.025em] text-[#29463f] sm:text-xl">
+              {searching ? `Results for “${query.trim()}”` : 'Fresh on campus'}
+            </h2>
+            <p className="mt-1 text-xs text-[#95a19d]">
+              {searching
+                ? `${filtered.length} listing${filtered.length === 1 ? '' : 's'}${category !== 'All' ? ` in ${category}` : ''}`
+                : 'Listings from your university community'}
+            </p>
           </div>
           <button className="flex shrink-0 items-center gap-1 rounded-lg border border-[#e5eae7] px-2.5 py-2 text-xs font-semibold text-[#6e8079] sm:px-3"><Filter size={14} /> <span className="hidden sm:inline">Filters</span></button>
         </div>
         {loading ? (
           <div className="rounded-2xl border border-dashed border-[#d9e5e0] bg-white p-8 text-center text-sm text-[#81908b]">Loading listings…</div>
         ) : filtered.length ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
-            {filtered.slice(0, 8).map((item) => (
-              <ListingCard key={item.id} item={item} saved={saved.includes(item.id)} toggleSaved={toggleSaved} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4">
+              {visible.map((item) => (
+                <ListingCard key={item.id} item={item} saved={saved.includes(item.id)} toggleSaved={toggleSaved} compact />
+              ))}
+            </div>
+            {filtered.length > PREVIEW_COUNT && !searching && (
+              <button
+                type="button"
+                onClick={() => setShowAll((open) => !open)}
+                className="mt-4 flex w-full items-center justify-center gap-1 rounded-xl border border-[#e5eae7] bg-white py-2.5 text-xs font-bold text-[#315e55] hover:border-[#b8d1c9] sm:mt-5"
+              >
+                {showAll ? 'Show fewer listings' : `See ${filtered.length - PREVIEW_COUNT} more listing${filtered.length - PREVIEW_COUNT === 1 ? '' : 's'}`}
+                <ChevronRight size={14} className={showAll ? 'rotate-[-90deg]' : 'rotate-90'} />
+              </button>
+            )}
+          </>
         ) : (
           <div className="rounded-2xl border border-dashed border-[#d9e5e0] bg-white p-8 text-center text-sm text-[#81908b] sm:p-10">No listings match your search yet. Be the first to post.</div>
         )}
@@ -94,8 +115,8 @@ export function HomeView() {
         <div className="rounded-2xl bg-[#f8eee7] p-5 sm:p-6">
           <div className="flex size-10 items-center justify-center rounded-xl bg-[#fff9f4] text-[#d1734b]"><Store size={19} /></div>
           <h2 className="mt-5 font-display text-xl font-bold tracking-[-0.025em] text-[#5b4337]">Open your shop</h2>
-          <p className="mt-2 text-sm leading-6 text-[#8e7162]">Turn your talent or side hustle into a storefront the campus can find.</p>
-          <button type="button" onClick={requestPost} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#d1734b] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#b9623e] sm:w-auto">Create a listing <Plus size={15} /></button>
+          <p className="mt-2 text-sm leading-6 text-[#8e7162]">Turn your listings into a storefront campus can follow.</p>
+          <button type="button" onClick={requestShop} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#d1734b] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#b9623e] sm:w-auto">Open a shop <Store size={15} /></button>
         </div>
       </section>
     </div>

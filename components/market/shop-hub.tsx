@@ -1,15 +1,17 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { Archive, CreditCard, Eye, Pencil, Plus, Smartphone, Sparkles, Store, X } from 'lucide-react'
+import { Archive, CreditCard, ExternalLink, Pencil, Plus, RefreshCw, Smartphone, Star } from 'lucide-react'
 import { ListingPhoto } from '@/components/listing-photo'
+import { ListingCard } from '@/components/market/listing-card'
+import { ShopHero } from '@/components/market/shop-hero'
 import { useMarket } from '@/components/market/provider'
 import { api } from '@/lib/api-client'
-import { formatUGX, isFeatured } from '@/lib/format'
+import { formatUGX, isFeatured, rentPeriodSuffix } from '@/lib/format'
 import { marketPaths } from '@/lib/market-paths'
-import type { Listing, ListingStatus } from '@/lib/types'
+import { isListingInShop } from '@/lib/shop'
+import type { Listing, ListingStatus, Shop } from '@/lib/types'
 
 type ShopFilter = 'all' | 'live' | 'featured' | 'sold' | 'archived'
 
@@ -21,13 +23,6 @@ const FILTERS: { id: ShopFilter; label: string }[] = [
   { id: 'archived', label: 'Archived' },
 ]
 
-function statusLabel(listing: Listing) {
-  if (listing.status === 'sold') return 'Sold'
-  if (listing.status === 'archived') return 'Archived'
-  if (listing.status === 'draft') return 'Draft'
-  return 'Live'
-}
-
 function matchesFilter(listing: Listing, filter: ShopFilter) {
   if (listing.status === 'removed') return false
   if (filter === 'all') return true
@@ -37,37 +32,61 @@ function matchesFilter(listing: Listing, filter: ShopFilter) {
   return listing.status === 'archived'
 }
 
-export function ShopHub() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const publishedId = searchParams.get('published')
-  const { myListings, loading, notify, updateMyListing } = useMarket()
+export function ShopHub({
+  shop,
+  onEditShop,
+  onCompose,
+}: {
+  shop: Shop
+  onEditShop: () => void
+  onCompose?: () => void
+}) {
+  const { profile, myListings, loading, notify, updateMyListing, saved, toggleSaved } = useMarket()
   const [filter, setFilter] = useState<ShopFilter>('all')
   const [busyId, setBusyId] = useState('')
   const [featureId, setFeatureId] = useState('')
   const [payError, setPayError] = useState('')
+  const [followerCount, setFollowerCount] = useState<number | undefined>()
 
-  const stats = useMemo(() => {
-    const live = myListings.filter((item) => item.status === 'active')
-    return {
-      live: live.length,
-      views: myListings.reduce((sum, item) => sum + (item.view_count ?? 0), 0),
-      featured: myListings.filter((item) => isFeatured(item)).length,
-      sold: myListings.filter((item) => item.status === 'sold').length,
-    }
-  }, [myListings])
-
-  const shown = useMemo(
-    () => myListings.filter((item) => matchesFilter(item, filter)),
-    [filter, myListings],
+  const shopListings = useMemo(
+    () => myListings.filter((item) => isListingInShop(item, shop.id)),
+    [myListings, shop.id],
   )
+  const available = useMemo(
+    () => myListings.filter((item) => item.status === 'active' && !isListingInShop(item, shop.id)),
+    [myListings, shop.id],
+  )
+  const liveCount = shopListings.filter((item) => item.status === 'active').length
+  const shown = useMemo(
+    () => shopListings.filter((item) => matchesFilter(item, filter)),
+    [filter, shopListings],
+  )
+
+  useEffect(() => {
+    api.shopBySlug(shop.slug)
+      .then((result) => setFollowerCount(result.follower_count))
+      .catch(() => undefined)
+  }, [shop.slug])
+
+  async function setShopMembership(listing: Listing, inShop: boolean) {
+    setBusyId(listing.id)
+    try {
+      const result = await api.updateListing(listing.id, { shop_id: inShop ? shop.id : null })
+      updateMyListing(result.data)
+      notify(inShop ? 'Added' : 'Removed')
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Unable to update shop')
+    } finally {
+      setBusyId('')
+    }
+  }
 
   async function setStatus(listing: Listing, status: ListingStatus) {
     setBusyId(listing.id)
     try {
       const result = await api.updateListing(listing.id, { status })
       updateMyListing(result.data)
-      notify(status === 'sold' ? 'Marked as sold' : status === 'active' ? 'Listing is live again' : 'Listing updated')
+      notify(status === 'sold' ? 'Sold' : status === 'active' ? 'Live' : 'Updated')
     } catch (err) {
       notify(err instanceof Error ? err.message : 'Unable to update listing')
     } finally {
@@ -80,7 +99,7 @@ export function ShopHub() {
     try {
       await api.deleteListing(listing.id)
       updateMyListing({ ...listing, status: 'archived' })
-      notify('Listing archived')
+      notify('Archived')
     } catch (err) {
       notify(err instanceof Error ? err.message : 'Unable to archive listing')
     } finally {
@@ -101,172 +120,156 @@ export function ShopHub() {
     }
   }
 
-  return (
-    <div className="mx-auto w-full max-w-[1100px] px-4 pb-8 pt-5 sm:px-8 sm:pt-8 lg:px-10">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#d1734b]">Your shop</p>
-          <h1 className="mt-2 font-display text-[1.85rem] font-bold tracking-[-0.045em] text-[#243e39] sm:text-[2.35rem]">Manage what you sell.</h1>
-          <p className="mt-2 max-w-xl text-sm leading-6 text-[#748780]">Stats, edits, and status live here. Profile stays a simple list of your listings.</p>
-        </div>
-        <Link href={marketPaths.postNew} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#315e55] px-4 text-sm font-bold text-white hover:bg-[#274c44]">
-          <Plus size={16} /> New listing
+  function cardActions(listing: Listing) {
+    const featured = isFeatured(listing)
+    const busy = busyId === listing.id
+    const live = listing.status === 'active'
+    const pill = 'inline-flex h-8 min-w-0 flex-1 items-center justify-center gap-1 rounded-full border border-[#e4ebe8] bg-[#fbfcfb] px-2 text-[11px] font-semibold tracking-[-0.02em] text-[#456059] transition hover:border-[#c9d8d2] hover:bg-white disabled:opacity-50 sm:flex-none sm:gap-1.5 sm:bg-white sm:px-3 sm:shadow-[0_1px_2px_rgba(36,62,57,0.05)]'
+    return (
+      <div className="flex w-full min-w-0 gap-1.5 sm:mt-3 sm:flex-wrap">
+        <Link href={marketPaths.postEdit(listing.id)} className={pill}>
+          <Pencil size={13} strokeWidth={2.1} /> Edit
         </Link>
-      </div>
-
-      {publishedId && (
-        <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-[#cfe0d9] bg-[#eaf3ef] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm font-bold text-[#315e55]">Listing saved. Campus can find it from here.</p>
-          <div className="flex items-center gap-2">
-            <Link href={marketPaths.listing(publishedId)} className="inline-flex h-9 items-center rounded-xl bg-[#315e55] px-3 text-[11px] font-bold text-white">
-              See it live
-            </Link>
-            <button
-              type="button"
-              aria-label="Dismiss"
-              onClick={() => router.replace(marketPaths.post)}
-              className="flex size-9 items-center justify-center rounded-xl text-[#526861] hover:bg-white/70"
-            >
-              <X size={16} />
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[
-          { label: 'Live', value: stats.live },
-          { label: 'Views', value: stats.views },
-          { label: 'Featured', value: stats.featured },
-          { label: 'Sold', value: stats.sold },
-        ].map((item) => (
-          <div key={item.label} className="rounded-2xl border border-[#e5eae7] bg-white px-4 py-4">
-            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#8b9994]">{item.label}</p>
-            <p className="mt-2 font-display text-2xl font-bold text-[#29463f]">{item.value}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-7 flex flex-wrap gap-2">
-        {FILTERS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setFilter(item.id)}
-            className={`rounded-full px-3.5 py-2 text-xs font-bold transition ${
-              filter === item.id ? 'bg-[#315e55] text-white' : 'border border-[#e5eae7] bg-white text-[#6e8079] hover:border-[#bfd4cc]'
-            }`}
-          >
-            {item.label}
+        {live && !featured && (
+          <button type="button" disabled={busy} onClick={() => { setPayError(''); setFeatureId((current) => current === listing.id ? '' : listing.id) }} className={`${pill} border-[#f0d4c6] bg-[#fff8f4] text-[#b9623e] hover:border-[#e8c4b0]`}>
+            <Star size={13} strokeWidth={2.1} /> Feature
           </button>
-        ))}
+        )}
+        {(listing.status === 'sold' || listing.status === 'archived') && (
+          <button type="button" disabled={busy} onClick={() => { void setStatus(listing, 'active') }} className={pill}>
+            <RefreshCw size={13} strokeWidth={2.1} /> Relist
+          </button>
+        )}
+        {listing.status !== 'archived' && (
+          <button type="button" disabled={busy} onClick={() => { void archiveListing(listing) }} className={pill}>
+            <Archive size={13} strokeWidth={2.1} /> Archive
+          </button>
+        )}
       </div>
+    )
+  }
 
-      {loading && !myListings.length && (
-        <p className="mt-8 text-sm text-[#81908b]">Loading your catalogue…</p>
+  return (
+    <div>
+      <ShopHero
+        shop={shop}
+        owner={shop.profiles ?? profile}
+        followerCount={followerCount}
+        listingCount={liveCount}
+        actions={(
+          <>
+            <Link href={marketPaths.shopPublic(shop.slug)} className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-[#dfe7e3] px-3.5 text-xs font-bold text-[#526861] hover:bg-[#f6f9f8]">
+              <ExternalLink size={14} /> View
+            </Link>
+            <button type="button" onClick={onEditShop} className="inline-flex h-10 items-center rounded-xl border border-[#dfe7e3] px-3.5 text-xs font-bold text-[#526861] hover:bg-[#f6f9f8]">
+              Edit
+            </button>
+          </>
+        )}
+      />
+
+      {loading && !shopListings.length && !available.length && (
+        <p className="mt-8 text-sm text-[#81908b]">Loading…</p>
       )}
 
       {!loading && !myListings.length && (
-        <div className="mt-10 rounded-[24px] border border-dashed border-[#d5e4de] bg-[#f7fbf9] px-6 py-14 text-center">
-          <span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-white text-[#d1734b] shadow-[0_8px_24px_rgba(49,94,85,0.08)]">
-            <Store size={22} />
-          </span>
-          <h2 className="mt-5 font-display text-2xl font-bold text-[#29463f]">Your shop is empty.</h2>
-          <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-[#748780]">Put something up for campus. A clear photo and a fair price usually get the first message.</p>
-          <Link href={marketPaths.postNew} className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#315e55] px-5 text-sm font-bold text-white hover:bg-[#274c44]">
-            Create a listing
-          </Link>
+        <div className="mt-6 rounded-[20px] border border-dashed border-[#d5e4de] bg-[#f7fbf9] px-5 py-10 text-center sm:mt-8 sm:rounded-[24px] sm:px-6 sm:py-12">
+          <p className="font-display text-lg font-bold text-[#29463f] sm:text-xl">No listings yet</p>
+          {onCompose ? (
+            <button type="button" onClick={onCompose} className="mt-5 inline-flex h-11 items-center gap-2 rounded-xl bg-[#315e55] px-5 text-sm font-bold text-white hover:bg-[#274c44]">
+              <Plus size={16} /> Post
+            </button>
+          ) : (
+            <Link href={marketPaths.post} className="mt-5 inline-flex h-11 items-center gap-2 rounded-xl bg-[#315e55] px-5 text-sm font-bold text-white hover:bg-[#274c44]">
+              <Plus size={16} /> Post
+            </Link>
+          )}
         </div>
       )}
 
-      {Boolean(shown.length) && (
-        <ul className="mt-5 space-y-3">
-          {shown.map((listing) => {
-            const featured = isFeatured(listing)
-            const busy = busyId === listing.id
-            const live = listing.status === 'active'
-            return (
-              <li key={listing.id} className="overflow-hidden rounded-2xl border border-[#e5eae7] bg-white">
-                <div className="flex gap-3 p-3 sm:gap-4 sm:p-4">
-                  <ListingPhoto listing={listing} alt={listing.title} className="size-[72px] shrink-0 rounded-xl sm:size-24" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
-                        listing.status === 'sold' ? 'bg-[#fff5f0] text-[#d1734b]'
-                          : listing.status === 'archived' ? 'bg-[#f3f5f4] text-[#7d9089]'
-                          : 'bg-[#e7f0ed] text-[#315e55]'
-                      }`}>{statusLabel(listing)}</span>
-                      {featured && (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-[#fff5f0] px-1.5 py-0.5 text-[10px] font-bold text-[#d1734b]">
-                          <Sparkles size={10} /> Featured
-                        </span>
-                      )}
-                    </div>
-                    <h2 className="mt-1 truncate font-display text-base font-bold text-[#29463f]">{listing.title}</h2>
-                    <p className="mt-0.5 text-sm font-bold text-[#d1734b]">{formatUGX(Number(listing.price), listing.currency)}</p>
-                    <p className="mt-1 inline-flex items-center gap-1 text-[11px] text-[#8c9995]">
-                      <Eye size={12} /> {listing.view_count ?? 0} views
-                    </p>
-                  </div>
+      <div className="mt-6 flex flex-col gap-2.5 sm:mt-8 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <h2 className="font-display text-lg font-bold text-[#29463f] sm:text-xl">In this shop</h2>
+        {shopListings.length > 3 && (
+          <div className="-mx-3.5 flex gap-1.5 overflow-x-auto px-3.5 no-scrollbar sm:mx-0 sm:flex-wrap sm:px-0">
+            {FILTERS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setFilter(item.id)}
+                className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-bold ${
+                  filter === item.id ? 'bg-[#315e55] text-white' : 'border border-[#e5eae7] bg-white text-[#6e8079]'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {shown.length ? (
+        <div className="mt-4 grid w-full min-w-0 gap-3 sm:mt-5 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+          {shown.map((listing) => (
+            <div key={listing.id} className="min-w-0 max-w-full">
+              <ListingCard
+                item={listing}
+                saved={saved.includes(listing.id)}
+                toggleSaved={toggleSaved}
+                hideSave
+                hideSeller
+                row
+                onRemove={() => { void setShopMembership(listing, false) }}
+                removeBusy={busyId === listing.id}
+                removeLabel="Remove from shop"
+                footer={cardActions(listing)}
+              />
+              {featureId === listing.id && (
+                <div className="mt-2 grid grid-cols-2 gap-2 rounded-2xl border border-[#e5eae7] bg-[#f8fbf9] p-2.5 sm:p-3">
+                  <button type="button" disabled={busyId === listing.id} onClick={() => { void pay(listing.id, 'mobile_money') }} className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-xl bg-white px-2 py-2.5 text-[11px] font-bold text-[#315e55] disabled:opacity-60 sm:gap-2 sm:text-xs">
+                    <Smartphone size={15} className="shrink-0" /> <span className="truncate">Mobile money</span>
+                  </button>
+                  <button type="button" disabled={busyId === listing.id} onClick={() => { void pay(listing.id, 'card') }} className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-xl bg-white px-2 py-2.5 text-[11px] font-bold text-[#315e55] disabled:opacity-60 sm:gap-2 sm:text-xs">
+                    <CreditCard size={15} className="shrink-0" /> Card
+                  </button>
+                  {payError && <p className="col-span-2 text-[11px] font-medium text-[#c86c48]">{payError}</p>}
                 </div>
-                <div className="flex flex-wrap gap-2 border-t border-[#eef3f0] px-3 py-3 sm:px-4">
-                  <Link href={marketPaths.postEdit(listing.id)} className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[#dfe7e3] px-3 text-[11px] font-bold text-[#526861] hover:bg-[#f6f9f8]">
-                    <Pencil size={13} /> Edit
-                  </Link>
-                  <Link href={marketPaths.listing(listing.id)} className="inline-flex h-9 items-center rounded-xl border border-[#dfe7e3] px-3 text-[11px] font-bold text-[#526861] hover:bg-[#f6f9f8]">
-                    View live
-                  </Link>
-                  {live && !featured && (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => { setPayError(''); setFeatureId((current) => current === listing.id ? '' : listing.id) }}
-                      className="inline-flex h-9 items-center rounded-xl bg-[#d1734b] px-3 text-[11px] font-bold text-white disabled:opacity-60"
-                    >
-                      Feature
-                    </button>
-                  )}
-                  {live && (
-                    <button type="button" disabled={busy} onClick={() => { void setStatus(listing, 'sold') }} className="inline-flex h-9 items-center rounded-xl border border-[#dfe7e3] px-3 text-[11px] font-bold text-[#526861] hover:bg-[#f6f9f8] disabled:opacity-60">
-                      Mark sold
-                    </button>
-                  )}
-                  {(listing.status === 'sold' || listing.status === 'archived') && (
-                    <button type="button" disabled={busy} onClick={() => { void setStatus(listing, 'active') }} className="inline-flex h-9 items-center rounded-xl border border-[#dfe7e3] px-3 text-[11px] font-bold text-[#526861] hover:bg-[#f6f9f8] disabled:opacity-60">
-                      Relist
-                    </button>
-                  )}
-                  {listing.status !== 'archived' && (
-                    <button type="button" disabled={busy} onClick={() => { void archiveListing(listing) }} className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[#dfe7e3] px-3 text-[11px] font-bold text-[#526861] hover:bg-[#f6f9f8] disabled:opacity-60">
-                      <Archive size={13} /> Archive
-                    </button>
-                  )}
-                </div>
-                {featureId === listing.id && (
-                  <div className="border-t border-[#eef3f0] bg-[#f8fbf9] px-3 py-3 sm:px-4">
-                    <p className="text-xs font-bold text-[#526861]">How would you like to pay?</p>
-                    <p className="mt-1 text-[11px] text-[#8b9994]">Choose mobile money or a card to feature this listing.</p>
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      <button type="button" disabled={busy} onClick={() => { void pay(listing.id, 'mobile_money') }} className="flex flex-col items-center gap-2 rounded-xl border border-[#dfe7e3] bg-white px-3 py-3.5 text-xs font-bold text-[#315e55] transition hover:border-[#8bb4a7] disabled:opacity-60">
-                        <span className="flex size-9 items-center justify-center rounded-xl bg-[#e7f0ed] text-[#315e55]"><Smartphone size={18} /></span>
-                        {busy ? 'Opening…' : 'Mobile money'}
-                      </button>
-                      <button type="button" disabled={busy} onClick={() => { void pay(listing.id, 'card') }} className="flex flex-col items-center gap-2 rounded-xl border border-[#dfe7e3] bg-white px-3 py-3.5 text-xs font-bold text-[#315e55] transition hover:border-[#8bb4a7] disabled:opacity-60">
-                        <span className="flex size-9 items-center justify-center rounded-xl bg-[#fff5f0] text-[#d1734b]"><CreditCard size={18} /></span>
-                        {busy ? 'Opening…' : 'Card'}
-                      </button>
-                    </div>
-                    {payError && <p className="mt-3 text-[11px] font-medium text-[#c86c48]">{payError}</p>}
-                  </div>
-                )}
-              </li>
-            )
-          })}
-        </ul>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-4 rounded-[20px] border border-dashed border-[#d5e4de] bg-[#f7fbf9] px-5 py-8 text-center text-sm text-[#748780] sm:mt-5 sm:rounded-[24px] sm:px-6 sm:py-10">
+          Nothing in this shop yet.
+        </p>
       )}
 
-      {!loading && myListings.length > 0 && shown.length === 0 && (
-        <p className="mt-8 text-sm text-[#81908b]">Nothing in this filter yet.</p>
+      {available.length > 0 && (
+        <section className="mt-8 sm:mt-10">
+          <h2 className="font-display text-lg font-bold text-[#29463f] sm:text-xl">Add</h2>
+          <ul className="mt-3.5 overflow-hidden rounded-[18px] border border-[#e5eae7] bg-white sm:mt-4 sm:rounded-[20px]">
+            {available.map((listing) => (
+              <li key={listing.id} className="flex min-w-0 items-center gap-3 border-b border-[#eef3f0] px-3 py-3 last:border-b-0 hover:bg-[#fafcfb] sm:gap-4 sm:px-5 sm:py-3.5">
+                <ListingPhoto listing={listing} alt="" className="size-14 shrink-0 rounded-[14px] sm:size-[4.5rem] sm:rounded-[16px]" />
+                <span className="min-w-0 flex-1 overflow-hidden">
+                  <span className="block truncate text-sm font-semibold tracking-[-0.01em] text-[#29463f] sm:text-[15px]">{listing.title}</span>
+                  <span className="mt-0.5 block truncate text-[13px] font-semibold text-[#d1734b] sm:mt-1 sm:text-sm">
+                    {formatUGX(Number(listing.price), listing.currency)}
+                    {listing.category === 'Rentals' && rentPeriodSuffix(listing.rent_period) && (
+                      <span className="font-semibold text-[#9aa7a2]"> {rentPeriodSuffix(listing.rent_period)}</span>
+                    )}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  disabled={busyId === listing.id}
+                  onClick={() => { void setShopMembership(listing, true) }}
+                  className="inline-flex h-9 shrink-0 items-center gap-1 rounded-full bg-[#315e55] px-3.5 text-[11px] font-semibold tracking-[-0.02em] text-white shadow-[0_3px_10px_rgba(49,94,85,0.18)] transition hover:bg-[#274c44] disabled:opacity-50 sm:px-4 sm:text-xs"
+                >
+                  <Plus size={14} strokeWidth={2.4} /> Add
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </div>
   )

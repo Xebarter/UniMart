@@ -8,13 +8,15 @@ import { marketPaths } from '@/lib/market-paths'
 import { api } from '@/lib/api-client'
 import { ensureBrowserSession } from '@/lib/auth-session'
 import { createClient } from '@/lib/supabase/client'
-import type { Article, Conversation, Listing, Notification, Profile } from '@/lib/types'
+import type { MarketCategory } from '@/lib/search'
+import type { Article, Conversation, Listing, Notification, Profile, Shop } from '@/lib/types'
 
 type MarketContextValue = {
   profile: Profile | null
   listings: Listing[]
   articles: Article[]
   myListings: Listing[]
+  myShop: Shop | null
   savedListings: Listing[]
   saved: string[]
   conversations: Conversation[]
@@ -23,6 +25,8 @@ type MarketContextValue = {
   setupNeeded: boolean
   query: string
   setQuery: (value: string) => void
+  category: MarketCategory
+  setCategory: (value: MarketCategory) => void
   toast: string
   authOpen: boolean
   unreadMessages: number
@@ -37,6 +41,7 @@ type MarketContextValue = {
   markNotificationsRead: () => Promise<void>
   addListing: (listing: Listing) => void
   updateMyListing: (listing: Listing) => void
+  setMyShop: (shop: Shop | null) => void
   setProfile: (profile: Profile | null) => void
 }
 
@@ -44,7 +49,7 @@ const AUTH_INTENT_SHOP = 'shop'
 const AUTH_INTENT_COMPOSE = 'compose'
 
 function pathForAuthIntent(intent: string | null) {
-  if (intent === AUTH_INTENT_COMPOSE || intent === 'post-new' || intent === 'post') return marketPaths.postNew
+  if (intent === AUTH_INTENT_SHOP) return marketPaths.shop
   return marketPaths.post
 }
 
@@ -54,9 +59,11 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   const [query, setQuery] = useState('')
+  const [category, setCategory] = useState<MarketCategory>('All')
   const [toast, setToast] = useState('')
   const [listings, setListings] = useState<Listing[]>([])
   const [myListings, setMyListings] = useState<Listing[]>([])
+  const [myShop, setMyShop] = useState<Shop | null>(null)
   const [savedListings, setSavedListings] = useState<Listing[]>([])
   const [articles, setArticles] = useState<Article[]>([])
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -91,6 +98,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
       setSaved([])
       setSavedListings([])
       setMyListings([])
+      setMyShop(null)
       setConversations([])
       setLoading(false)
       return
@@ -99,16 +107,18 @@ export function MarketProvider({ children }: { children: ReactNode }) {
       const me = await api.profile().catch(() => api.profile())
       if (generation !== refreshGeneration.current) return
       setProfile(me.data)
-      const [favorites, inbox, notes, mine] = await Promise.all([
+      const [favorites, inbox, notes, mine, shop] = await Promise.all([
         api.favorites().catch(() => ({ data: [] as { listing_id: string; listings: Listing | null }[] })),
         api.conversations().catch(() => ({ data: [] as Conversation[] })),
         api.notifications().catch(() => ({ data: [] as Notification[], unread: 0 })),
         api.listings('mine=1').catch(() => ({ data: [] as Listing[] })),
+        api.shop().catch(() => ({ data: null as Shop | null })),
       ])
       if (generation !== refreshGeneration.current) return
       setSaved(favorites.data.map((row) => row.listing_id))
       setSavedListings(favorites.data.map((row) => row.listings).filter((item): item is Listing => Boolean(item)))
       setMyListings(mine.data)
+      setMyShop(shop.data)
       setConversations(inbox.data)
       setNotifications(notes.data)
     } catch {
@@ -157,7 +167,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
 
   const requestShop = useCallback(() => {
     if (profile) {
-      router.push(marketPaths.post)
+      router.push(marketPaths.shop)
       return
     }
     sessionStorage.setItem(AUTH_INTENT_KEY, AUTH_INTENT_SHOP)
@@ -166,7 +176,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
 
   const requestPost = useCallback(() => {
     if (profile) {
-      router.push(marketPaths.postNew)
+      router.push(marketPaths.post)
       return
     }
     sessionStorage.setItem(AUTH_INTENT_KEY, AUTH_INTENT_COMPOSE)
@@ -176,7 +186,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   const closeAuth = useCallback(() => {
     sessionStorage.removeItem(AUTH_INTENT_KEY)
     setAuthOpen(false)
-    if (pathname.startsWith(marketPaths.post)) router.replace(marketPaths.home)
+    if (pathname.startsWith(marketPaths.post) || pathname === marketPaths.shop) router.replace(marketPaths.home)
   }, [pathname, router])
 
   const finishAuth = useCallback(async () => {
@@ -235,6 +245,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     listings,
     articles,
     myListings,
+    myShop,
     savedListings,
     saved,
     conversations,
@@ -243,6 +254,8 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     setupNeeded,
     query,
     setQuery,
+    category,
+    setCategory,
     toast,
     authOpen,
     unreadMessages: conversations.reduce((sum, item) => sum + (item.unread_count ?? 0), 0),
@@ -257,11 +270,13 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     markNotificationsRead,
     addListing,
     updateMyListing,
+    setMyShop,
     setProfile,
   }), [
     addListing,
     articles,
     authOpen,
+    category,
     closeAuth,
     conversations,
     finishAuth,
@@ -269,6 +284,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     loading,
     markNotificationsRead,
     myListings,
+    myShop,
     notifications,
     notify,
     profile,

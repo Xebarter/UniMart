@@ -1,5 +1,7 @@
 export const LISTING_CATEGORIES = ['Products', 'Services', 'Rentals', 'Gigs'] as const
 export type ListingCategory = (typeof LISTING_CATEGORIES)[number]
+export const RENT_PERIODS = ['day', 'week', 'month'] as const
+export type RentPeriod = (typeof RENT_PERIODS)[number]
 export type ListingStatus = 'draft' | 'pending' | 'active' | 'sold' | 'archived' | 'removed'
 
 export type Profile = {
@@ -35,14 +37,32 @@ export type Listing = {
   currency: string
   location: string
   condition: string
+  rent_period?: RentPeriod | null
   status: ListingStatus
   featured_until: string | null
   view_count: number
+  shop_id?: string | null
   created_at: string
   updated_at: string
   listing_media?: ListingMedia[]
   profiles?: Pick<Profile, 'id' | 'display_name' | 'university' | 'campus' | 'avatar_url' | 'verified'> | null
   saved?: boolean
+}
+
+export type Shop = {
+  id: string
+  owner_id: string
+  name: string
+  slug: string
+  bio: string | null
+  cover_url: string | null
+  created_at: string
+  updated_at: string
+  profiles?: Pick<Profile, 'id' | 'display_name' | 'university' | 'campus' | 'avatar_url' | 'verified'> | null
+}
+
+export type FollowedProfile = Profile & {
+  shop?: Pick<Shop, 'name' | 'slug'> | null
 }
 
 export type Article = {
