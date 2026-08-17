@@ -68,6 +68,9 @@ export function ListingDetail({ listing }: { listing: Listing }) {
         {isOwner && !payOpen && (
           <button onClick={() => setPayOpen(true)} className="rounded-xl bg-[#d1734b] px-4 py-2.5 text-xs font-bold text-white">Feature this listing</button>
         )}
+        {isOwner && (
+          <Link href={marketPaths.post} className="rounded-xl border border-[#dfe7e3] px-4 py-2.5 text-xs font-bold text-[#638076]">Manage in shop</Link>
+        )}
         {!isOwner && (
           <button onClick={() => { void messageSeller() }} className="rounded-xl bg-[#315e55] px-4 py-2.5 text-xs font-bold text-white">Message seller</button>
         )}

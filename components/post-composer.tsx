@@ -83,22 +83,30 @@ function Avatar({ name, image }: { name: string; image?: string | null }) {
 
 export function PostComposer({
   profile,
+  listing,
   onBack,
   onCreated,
   onSeeLive,
 }: {
   profile: Profile
+  listing?: Listing
   onBack: () => void
   onCreated: (listing: Listing) => Promise<void>
   onSeeLive: (listing: Listing) => void
 }) {
+  const editing = Boolean(listing)
+  const existingPhotos = useMemo(
+    () => [...(listing?.listing_media ?? [])].sort((a, b) => a.sort_order - b.sort_order),
+    [listing],
+  )
+  const remainingSlots = Math.max(0, MAX_PHOTOS - existingPhotos.length)
   const inputRef = useRef<HTMLInputElement>(null)
-  const [type, setType] = useState<ListingCategory>('Products')
-  const [title, setTitle] = useState('')
-  const [price, setPrice] = useState('')
-  const [location, setLocation] = useState(profile.campus || profile.university || '')
-  const [description, setDescription] = useState('')
-  const [condition, setCondition] = useState('good')
+  const [type, setType] = useState<ListingCategory>(listing?.category ?? 'Products')
+  const [title, setTitle] = useState(listing?.title ?? '')
+  const [price, setPrice] = useState(listing ? String(Math.round(Number(listing.price) || 0)) : '')
+  const [location, setLocation] = useState(listing?.location || profile.campus || profile.university || '')
+  const [description, setDescription] = useState(listing?.description ?? '')
+  const [condition, setCondition] = useState(listing?.condition || 'good')
   const [files, setFiles] = useState<File[]>([])
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('')
@@ -122,7 +130,7 @@ export function PostComposer({
     const next = [...files]
     let message = ''
     for (const file of incoming) {
-      if (next.length >= MAX_PHOTOS) {
+      if (next.length >= remainingSlots) {
         message = `You can add up to ${MAX_PHOTOS} photos.`
         break
       }
@@ -177,27 +185,36 @@ export function PostComposer({
 
     setBusy(true)
     setError('')
-    setStatus('Publishing your listing…')
+    setStatus(editing ? 'Saving your listing…' : 'Publishing your listing…')
     try {
-      const created = await api.createListing({
-        title: trimmedTitle,
-        description: trimmedDescription,
-        category: type,
-        price: amount,
-        location: trimmedLocation,
-        condition: type === 'Products' ? condition : 'good',
-      })
+      const saved = listing
+        ? await api.updateListing(listing.id, {
+            title: trimmedTitle,
+            description: trimmedDescription,
+            category: type,
+            price: amount,
+            location: trimmedLocation,
+            condition: type === 'Products' ? condition : 'good',
+          })
+        : await api.createListing({
+            title: trimmedTitle,
+            description: trimmedDescription,
+            category: type,
+            price: amount,
+            location: trimmedLocation,
+            condition: type === 'Products' ? condition : 'good',
+          })
       for (const [index, file] of files.entries()) {
         setStatus(`Adding photos ${index + 1} of ${files.length}…`)
-        await api.uploadMedia(created.data.id, file)
+        await api.uploadMedia(saved.data.id, file)
       }
       const fresh = files.length
-        ? await api.listing(created.data.id).catch(() => created)
-        : created
+        ? await api.listing(saved.data.id).catch(() => saved)
+        : saved
       setPublished(fresh.data)
       await onCreated(fresh.data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to publish listing.')
+      setError(err instanceof Error ? err.message : editing ? 'Unable to save listing.' : 'Unable to publish listing.')
     } finally {
       setBusy(false)
       setStatus('')
@@ -223,9 +240,9 @@ export function PostComposer({
         <div className="post-success-mark flex size-[72px] items-center justify-center rounded-full bg-[#e7f3ee] text-[#2f5b52] shadow-[0_12px_40px_rgba(49,94,85,0.12)]">
           <CheckCircle2 size={34} />
         </div>
-        <p className="mt-6 text-[11px] font-bold uppercase tracking-[0.16em] text-[#d1734b]">Live on UniMart</p>
-        <h1 className="mt-2 font-display text-[1.85rem] font-bold tracking-[-0.04em] text-[#243e39] sm:text-4xl">Your listing is up.</h1>
-        <p className="mt-3 max-w-md text-sm leading-6 text-[#748780]">Campus can find it now. A clear photo and a fair price usually get the first message.</p>
+        <p className="mt-6 text-[11px] font-bold uppercase tracking-[0.16em] text-[#d1734b]">{editing ? 'Saved' : 'Live on UniMart'}</p>
+        <h1 className="mt-2 font-display text-[1.85rem] font-bold tracking-[-0.04em] text-[#243e39] sm:text-4xl">{editing ? 'Your listing is updated.' : 'Your listing is up.'}</h1>
+        <p className="mt-3 max-w-md text-sm leading-6 text-[#748780]">{editing ? 'Campus will see the latest details. You can keep managing it from your shop.' : 'Campus can find it now. A clear photo and a fair price usually get the first message.'}</p>
         <article className="mt-8 w-full overflow-hidden rounded-2xl border border-[#e5eae7] bg-white text-left shadow-[0_10px_30px_rgba(36,62,57,0.06)]">
           <ListingPhoto listing={published} src={cover} alt={published.title} className="aspect-[4/3] w-full" />
           <div className="p-4">
@@ -239,11 +256,13 @@ export function PostComposer({
           <button onClick={() => onSeeLive(published)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#315e55] px-5 text-sm font-bold text-white hover:bg-[#274c44]">
             See it live <ArrowUpRight size={16} />
           </button>
-          <button onClick={reset} className="inline-flex h-11 items-center justify-center rounded-xl border border-[#dfe7e3] px-5 text-sm font-bold text-[#5f746c] hover:bg-[#f6f9f8]">
-            Post another
-          </button>
+          {!editing && (
+            <button onClick={reset} className="inline-flex h-11 items-center justify-center rounded-xl border border-[#dfe7e3] px-5 text-sm font-bold text-[#5f746c] hover:bg-[#f6f9f8]">
+              Post another
+            </button>
+          )}
         </div>
-        <button onClick={onBack} className="mt-3 text-xs font-bold text-[#8b9994] hover:text-[#526861]">Back to marketplace</button>
+        <button onClick={onBack} className="mt-3 text-xs font-bold text-[#8b9994] hover:text-[#526861]">Back to shop</button>
       </div>
     )
   }
@@ -251,9 +270,10 @@ export function PostComposer({
   return (
     <div className="mx-auto w-full max-w-[1100px] px-3 pb-8 pt-5 sm:px-8 sm:pt-8 lg:px-10">
       <div className="max-w-xl">
-        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#d1734b]">New listing</p>
-        <h1 className="mt-2 font-display text-[1.85rem] font-bold tracking-[-0.045em] text-[#243e39] sm:text-[2.35rem]">Make it easy to say yes.</h1>
-        <p className="mt-2 text-sm leading-6 text-[#748780]">A strong photo, a clear price, and where to find you. That is usually enough.</p>
+        <button type="button" onClick={onBack} className="text-[11px] font-bold text-[#8b9994] hover:text-[#526861]">Back to shop</button>
+        <p className="mt-3 text-[11px] font-bold uppercase tracking-[0.16em] text-[#d1734b]">{editing ? 'Edit listing' : 'New listing'}</p>
+        <h1 className="mt-2 font-display text-[1.85rem] font-bold tracking-[-0.045em] text-[#243e39] sm:text-[2.35rem]">{editing ? 'Update the details buyers see.' : 'Make it easy to say yes.'}</h1>
+        <p className="mt-2 text-sm leading-6 text-[#748780]">{editing ? 'Save changes, then head back to your shop. You can add more photos here.' : 'A strong photo, a clear price, and where to find you. That is usually enough.'}</p>
       </div>
 
       <div className="mt-7 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -297,25 +317,34 @@ export function PostComposer({
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-bold text-[#2e4942]">Photos</p>
-                  <p className="mt-0.5 text-[11px] text-[#7d9089]">First photo becomes the cover. Up to {MAX_PHOTOS}.</p>
+                  <p className="mt-0.5 text-[11px] text-[#7d9089]">{existingPhotos.length ? 'Existing photos stay. Add more if you have them.' : 'First photo becomes the cover.'} Up to {MAX_PHOTOS}.</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => inputRef.current?.click()}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[#d7e4df] bg-white px-3 text-[11px] font-bold text-[#526861]"
+                  disabled={!remainingSlots}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[#d7e4df] bg-white px-3 text-[11px] font-bold text-[#526861] disabled:opacity-50"
                 >
                   <ImagePlus size={14} /> Add
                 </button>
               </div>
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-                {previews.map((item, index) => (
-                  <div key={item.url} className="group relative aspect-square overflow-hidden rounded-xl bg-[#dce4ee]">
-                    <img src={item.url} alt="" className="size-full object-cover object-center" />
+                {existingPhotos.map((item, index) => (
+                  <div key={item.id} className="relative aspect-square overflow-hidden rounded-xl bg-[#dce4ee]">
+                    <ListingPhoto listing={{ category: type, listing_media: [item] }} alt="" className="size-full" />
                     {index === 0 && (
                       <span className="absolute left-1.5 top-1.5 rounded-md bg-white/90 px-1.5 py-0.5 text-[9px] font-bold text-[#315e55]">Cover</span>
                     )}
+                  </div>
+                ))}
+                {previews.map((item, index) => (
+                  <div key={item.url} className="group relative aspect-square overflow-hidden rounded-xl bg-[#dce4ee]">
+                    <img src={item.url} alt="" className="size-full object-cover object-center" />
+                    {!existingPhotos.length && index === 0 && (
+                      <span className="absolute left-1.5 top-1.5 rounded-md bg-white/90 px-1.5 py-0.5 text-[9px] font-bold text-[#315e55]">Cover</span>
+                    )}
                     <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-gradient-to-t from-black/55 to-transparent p-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
-                      {index > 0 && (
+                      {!existingPhotos.length && index > 0 && (
                         <button type="button" onClick={() => makeCover(index)} className="rounded-md bg-white/90 px-1.5 py-0.5 text-[9px] font-bold text-[#315e55]">Cover</button>
                       )}
                       <button type="button" aria-label="Remove photo" onClick={() => removeFile(index)} className="ml-auto flex size-6 items-center justify-center rounded-md bg-white/90 text-[#5f746c]">
@@ -324,7 +353,7 @@ export function PostComposer({
                     </div>
                   </div>
                 ))}
-                {files.length < MAX_PHOTOS && (
+                {files.length < remainingSlots && (
                   <button
                     type="button"
                     onClick={() => inputRef.current?.click()}
@@ -437,7 +466,7 @@ export function PostComposer({
                 disabled={busy}
                 className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#315e55] text-sm font-bold text-white shadow-[0_10px_24px_rgba(49,94,85,0.18)] transition hover:bg-[#274c44] disabled:opacity-60"
               >
-                {busy ? status || 'Publishing…' : 'Publish listing'}
+                {busy ? status || (editing ? 'Saving…' : 'Publishing…') : editing ? 'Save changes' : 'Publish listing'}
                 {!busy && <ArrowUpRight size={16} />}
               </button>
               {busy && (
@@ -455,7 +484,7 @@ export function PostComposer({
             </div>
             <article className="overflow-hidden rounded-2xl border border-[#eef3f0]">
               <div className="relative">
-                <ListingPhoto src={previews[0]?.url} listing={{ category: type, listing_media: [] }} alt={title} className="aspect-[4/3] w-full" />
+                <ListingPhoto src={previews[0]?.url} listing={{ category: type, listing_media: existingPhotos }} alt={title} className="aspect-[4/3] w-full" />
                 <span className="absolute left-3 top-3 z-[2] rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold text-[#52635e]">{type}</span>
               </div>
               <div className="p-3.5">

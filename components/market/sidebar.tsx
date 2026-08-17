@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Compass, Heart, Home, MessageCircle, Plus, Settings, UserRound } from 'lucide-react'
+import { Compass, Heart, Home, MessageCircle, Settings, Store, UserRound } from 'lucide-react'
 import { BrandLogo } from '@/components/brand-logo'
 import { Avatar } from '@/components/market/avatar'
 import { useMarket } from '@/components/market/provider'
@@ -14,7 +14,7 @@ import type { Profile } from '@/lib/types'
 export const navItems: { id: MarketView; href: string; label: string; icon: typeof Home }[] = [
   { id: 'home', href: marketPaths.home, label: 'Home', icon: Home },
   { id: 'explore', href: marketPaths.explore, label: 'Explore', icon: Compass },
-  { id: 'post', href: marketPaths.post, label: 'Post something', icon: Plus },
+  { id: 'post', href: marketPaths.post, label: 'Shop', icon: Store },
   { id: 'profile', href: marketPaths.profile, label: 'Profile', icon: UserRound },
 ]
 
@@ -27,7 +27,7 @@ export function AppSidebar({
 }) {
   const pathname = usePathname()
   const view = viewFromPath(pathname)
-  const { profile, unreadMessages, requestPost } = useMarket()
+  const { profile, unreadMessages, requestShop } = useMarket()
 
   const itemClass = (active: boolean) =>
     `group flex w-full items-center gap-3 rounded-2xl px-2.5 py-2 text-left text-[13px] font-medium transition-all duration-200 ${
@@ -42,7 +42,7 @@ export function AppSidebar({
 
   function go(id: MarketView) {
     onNavigate?.()
-    if (id === 'post') requestPost()
+    if (id === 'post') requestShop()
   }
 
   return (
@@ -65,7 +65,6 @@ export function AppSidebar({
               <button key={id} type="button" onClick={() => go(id)} className={itemClass(view === id)}>
                 <span className={iconWrap(view === id)}><Icon size={16} strokeWidth={1.9} /></span>
                 <span>{label}</span>
-                <span className="ml-auto rounded-md bg-[#d1734b] px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-white">NEW</span>
               </button>
             ) : (
               <Link key={id} href={href} onClick={onNavigate} className={itemClass(view === id)}>

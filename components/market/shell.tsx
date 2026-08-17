@@ -13,7 +13,7 @@ import { viewFromPath } from '@/lib/market-paths'
 export function MarketShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const view = viewFromPath(pathname)
-  const { setupNeeded, toast, authOpen, closeAuth, finishAuth, requestPost } = useMarket()
+  const { setupNeeded, toast, authOpen, closeAuth, finishAuth, requestShop } = useMarket()
   const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
@@ -59,18 +59,18 @@ export function MarketShell({ children }: { children: React.ReactNode }) {
       <nav className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-around border-t border-[#e5eae7] bg-white/95 px-1 pt-1.5 backdrop-blur-md lg:hidden" style={{ paddingBottom: 'max(10px, env(safe-area-inset-bottom, 0px))' }}>
         {navItems.map(({ id, href, label, icon: Icon }) => (
           id === 'post' ? (
-            <button key={id} type="button" onClick={requestPost} className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 text-[10px] font-bold ${view === id ? 'text-[#315e55]' : 'text-[#9aa7a2]'}`}>
+            <button key={id} type="button" onClick={requestShop} className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 text-[10px] font-bold ${view === id ? 'text-[#315e55]' : 'text-[#9aa7a2]'}`}>
               <span className={`flex size-8 items-center justify-center rounded-xl ${view === id ? 'bg-[#e7f0ed]' : ''}`}>
                 <Icon size={18} strokeWidth={1.9} />
               </span>
-              Post
+              Shop
             </button>
           ) : (
             <Link key={id} href={href} className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 text-[10px] font-bold ${view === id ? 'text-[#315e55]' : 'text-[#9aa7a2]'}`}>
               <span className={`flex size-8 items-center justify-center rounded-xl ${view === id ? 'bg-[#e7f0ed]' : ''}`}>
                 <Icon size={18} strokeWidth={1.9} />
               </span>
-              {label === 'Post something' ? 'Post' : label}
+              {label}
             </Link>
           )
         ))}

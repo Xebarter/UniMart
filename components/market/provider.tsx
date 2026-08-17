@@ -30,12 +30,22 @@ type MarketContextValue = {
   refresh: () => Promise<void>
   toggleSaved: (id: string) => Promise<void>
   notify: (message: string) => void
+  requestShop: () => void
   requestPost: () => void
   closeAuth: () => void
   finishAuth: () => Promise<void>
   markNotificationsRead: () => Promise<void>
   addListing: (listing: Listing) => void
+  updateMyListing: (listing: Listing) => void
   setProfile: (profile: Profile | null) => void
+}
+
+const AUTH_INTENT_SHOP = 'shop'
+const AUTH_INTENT_COMPOSE = 'compose'
+
+function pathForAuthIntent(intent: string | null) {
+  if (intent === AUTH_INTENT_COMPOSE || intent === 'post-new' || intent === 'post') return marketPaths.postNew
+  return marketPaths.post
 }
 
 const MarketContext = createContext<MarketContextValue | null>(null)
@@ -138,32 +148,43 @@ export function MarketProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!profile) return
-    if (sessionStorage.getItem(AUTH_INTENT_KEY) !== 'post') return
+    const intent = sessionStorage.getItem(AUTH_INTENT_KEY)
+    if (intent !== AUTH_INTENT_SHOP && intent !== AUTH_INTENT_COMPOSE && intent !== 'post' && intent !== 'post-new') return
     sessionStorage.removeItem(AUTH_INTENT_KEY)
     setAuthOpen(false)
-    router.push(marketPaths.post)
+    router.push(pathForAuthIntent(intent))
   }, [profile, router])
 
-  const requestPost = useCallback(() => {
+  const requestShop = useCallback(() => {
     if (profile) {
       router.push(marketPaths.post)
       return
     }
-    sessionStorage.setItem(AUTH_INTENT_KEY, 'post')
+    sessionStorage.setItem(AUTH_INTENT_KEY, AUTH_INTENT_SHOP)
+    setAuthOpen(true)
+  }, [profile, router])
+
+  const requestPost = useCallback(() => {
+    if (profile) {
+      router.push(marketPaths.postNew)
+      return
+    }
+    sessionStorage.setItem(AUTH_INTENT_KEY, AUTH_INTENT_COMPOSE)
     setAuthOpen(true)
   }, [profile, router])
 
   const closeAuth = useCallback(() => {
     sessionStorage.removeItem(AUTH_INTENT_KEY)
     setAuthOpen(false)
-    if (pathname === marketPaths.post) router.replace(marketPaths.home)
+    if (pathname.startsWith(marketPaths.post)) router.replace(marketPaths.home)
   }, [pathname, router])
 
   const finishAuth = useCallback(async () => {
+    const intent = sessionStorage.getItem(AUTH_INTENT_KEY)
     sessionStorage.removeItem(AUTH_INTENT_KEY)
     await refresh()
     setAuthOpen(false)
-    router.push(marketPaths.post)
+    router.push(pathForAuthIntent(intent))
   }, [refresh, router])
 
   const toggleSaved = useCallback(async (id: string) => {
@@ -195,6 +216,20 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     setMyListings((current) => [listing, ...current])
   }, [])
 
+  const updateMyListing = useCallback((listing: Listing) => {
+    setMyListings((current) => {
+      const exists = current.some((item) => item.id === listing.id)
+      if (!exists) return [listing, ...current]
+      return current.map((item) => (item.id === listing.id ? listing : item))
+    })
+    setListings((current) => {
+      if (listing.status !== 'active') return current.filter((item) => item.id !== listing.id)
+      const exists = current.some((item) => item.id === listing.id)
+      if (!exists) return [listing, ...current]
+      return current.map((item) => (item.id === listing.id ? listing : item))
+    })
+  }, [])
+
   const value = useMemo<MarketContextValue>(() => ({
     profile,
     listings,
@@ -215,11 +250,13 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     refresh,
     toggleSaved,
     notify,
+    requestShop,
     requestPost,
     closeAuth,
     finishAuth,
     markNotificationsRead,
     addListing,
+    updateMyListing,
     setProfile,
   }), [
     addListing,
@@ -238,11 +275,13 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     query,
     refresh,
     requestPost,
+    requestShop,
     saved,
     savedListings,
     setupNeeded,
     toast,
     toggleSaved,
+    updateMyListing,
   ])
 
   return <MarketContext.Provider value={value}>{children}</MarketContext.Provider>

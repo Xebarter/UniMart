@@ -17,7 +17,7 @@ export function ProfileView() {
   const { profile, myListings, savedListings, saved, toggleSaved, requestPost, setProfile } = useMarket()
   const [tab, setTab] = useState('Listings')
   const [editing, setEditing] = useState(false)
-  const shown = tab === 'Saved' ? savedListings : myListings
+  const shown = tab === 'Saved' ? savedListings : myListings.filter((item) => item.status === 'active')
 
   if (!profile) {
     return (
