@@ -6,6 +6,7 @@ import { AuthDivider, GoogleAuthButton } from '@/components/google-auth-button'
 import { PasswordInput } from '@/components/password-input'
 import { getSafeNextPath } from '@/lib/auth'
 import { signInWithEmailPassword } from '@/lib/auth-client'
+import { consumeGoogleAuthError } from '@/lib/google-auth-client'
 import { createClient } from '@/lib/supabase/client'
 
 export default function LoginPage() {
@@ -15,6 +16,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
+    const googleError = consumeGoogleAuthError()
+    if (googleError) setMessage(googleError)
     const next = getSafeNextPath(new URLSearchParams(window.location.search).get('next'))
     createClient().auth.getUser().then(({ data: { user } }) => {
       if (user) window.location.replace(next)

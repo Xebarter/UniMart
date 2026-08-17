@@ -1,4 +1,4 @@
-import type { AdminStats, Article, Conversation, FollowedProfile, Listing, Message, Notification, Profile, Report, Shop } from '@/lib/types'
+import type { AdminAnalytics, AdminSettingsSnapshot, AdminStats, Article, AuditLog, Conversation, FollowedProfile, Listing, Message, Notification, Paginated, Payment, Profile, Report, Shop } from '@/lib/types'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -64,17 +64,39 @@ export const api = {
     request<{ data: Shop }>('/api/shops', { method: 'PATCH', body: JSON.stringify(body) }),
   checkout: (body: { listing_id: string; method: 'mobile_money' | 'card' }) =>
     request<{ checkout_url: string }>('/api/payments/checkout', { method: 'POST', body: JSON.stringify(body) }),
-  adminStats: () => request<{ data: AdminStats }>('/api/admin/stats'),
-  adminUsers: () => request<{ data: Profile[] }>('/api/admin/users'),
-  adminReports: () => request<{ data: Report[] }>('/api/reports'),
+  adminStats: (range?: string) => request<{ data: AdminStats }>(`/api/admin/stats${range ? `?range=${range}` : ''}`),
+  adminUsers: (params?: string) => request<Paginated<Profile>>(`/api/admin/users${params ? `?${params}` : ''}`),
+  adminUser: (id: string) => request<{ data: Profile; shop: Shop | null; listings: Listing[]; reports: Report[]; payments: Payment[]; conversation_count: number }>(`/api/admin/users/${id}`),
+  adminListings: (params?: string) => request<Paginated<Listing>>(`/api/admin/listings${params ? `?${params}` : ''}`),
+  adminListing: (id: string) => request<{ data: Listing; reports: Report[]; payments: Payment[] }>(`/api/admin/listings/${id}`),
+  adminShops: (params?: string) => request<Paginated<Shop>>(`/api/admin/shops${params ? `?${params}` : ''}`),
+  adminShop: (id: string) => request<{ data: Shop; listings: Listing[] }>(`/api/admin/shops/${id}`),
+  updateShopStatus: (id: string, status: string) =>
+    request('/api/admin/shops', { method: 'PATCH', body: JSON.stringify({ id, status }) }),
+  adminReports: (params?: string) => request<Paginated<Report> & { counts: { open: number; reviewing: number; resolved: number; dismissed: number } }>(`/api/admin/reports${params ? `?${params}` : ''}`),
+  adminReport: (id: string) => request<{ data: Report; related: Report[] }>(`/api/admin/reports/${id}`),
+  adminPayments: (params?: string) => request<Paginated<Payment>>(`/api/admin/payments${params ? `?${params}` : ''}`),
+  adminPayment: (id: string) => request<{ data: Payment }>(`/api/admin/payments/${id}`),
+  adminArticles: (params?: string) => request<Paginated<Article>>(`/api/admin/articles${params ? `?${params}` : ''}`),
+  adminArticle: (id: string) => request<{ data: Article }>(`/api/admin/articles/${id}`),
+  createArticle: (body: Record<string, unknown>) =>
+    request<{ data: Article }>('/api/admin/articles', { method: 'POST', body: JSON.stringify(body) }),
+  updateArticle: (id: string, body: Record<string, unknown>) =>
+    request<{ data: Article }>(`/api/admin/articles/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  adminMessages: (params?: string) => request<Paginated<Conversation>>(`/api/admin/messages${params ? `?${params}` : ''}`),
+  adminThread: (id: string) => request<{ data: Conversation; messages: Message[] }>(`/api/admin/messages/${id}`),
+  adminAudit: (params?: string) => request<Paginated<AuditLog>>(`/api/admin/audit${params ? `?${params}` : ''}`),
+  adminAnalytics: (params?: string) => request<AdminAnalytics>(`/api/admin/analytics${params ? `?${params}` : ''}`),
+  adminHealth: () => request<{ ok: boolean; database: string; time: string }>('/api/health'),
+  adminSettings: () => request<{ data: AdminSettingsSnapshot }>('/api/admin/settings'),
   resolveReport: (id: string, status: string) =>
-    request(`/api/reports/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
-  moderateListing: (id: string, status: string) =>
-    request(`/api/admin/listings`, { method: 'PATCH', body: JSON.stringify({ id, status }) }),
+    request(`/api/admin/reports/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  moderateListing: (id: string, body: Record<string, unknown>) =>
+    request('/api/admin/listings', { method: 'PATCH', body: JSON.stringify({ id, ...body }) }),
   updateUser: (id: string, body: Record<string, unknown>) =>
     request('/api/admin/users', { method: 'PATCH', body: JSON.stringify({ id, ...body }) }),
   publishArticle: (id: string, status: string) =>
-    request('/api/admin/articles', { method: 'PATCH', body: JSON.stringify({ id, status }) }),
+    request(`/api/admin/articles/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   track: (event_name: string, metadata?: Record<string, unknown>, listing_id?: string) =>
     request('/api/analytics', { method: 'POST', body: JSON.stringify({ event_name, metadata, listing_id }) }).catch(() => null),
   uploadMedia: async (listingId: string, file: File) => {

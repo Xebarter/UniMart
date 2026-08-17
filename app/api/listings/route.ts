@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { dbError, jsonError, jsonOk, parseJson, requireUser } from '@/lib/api/http'
+import { dbError, jsonError, jsonOk, parseJson, rejectIfRestricted, requireUser } from '@/lib/api/http'
 import { isCategory, isRentPeriod } from '@/lib/format'
 
 const LISTING_SELECT = '*, listing_media(*), profiles:owner_id(id, display_name, university, campus, avatar_url, verified)'
@@ -49,6 +49,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const auth = await requireUser()
   if (auth.response) return auth.response
+  const restricted = await rejectIfRestricted(auth.supabase, auth.user.id)
+  if (restricted) return restricted
   const body = await parseJson(request)
   if (!body) return jsonError('Invalid JSON body.')
   const title = typeof body.title === 'string' ? body.title.trim() : ''

@@ -95,6 +95,24 @@ export function rentPeriodSuffix(period?: string | null) {
   return null
 }
 
+export function humanizeKey(value?: string | null) {
+  if (!value) return '—'
+  return value
+    .replace(/[_.-]+/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+    .trim()
+}
+
+export function formatDate(value?: string | null) {
+  if (!value) return '—'
+  return new Date(value).toLocaleDateString('en-UG', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+export function formatDateTime(value?: string | null) {
+  if (!value) return '—'
+  return new Date(value).toLocaleString('en-UG', { dateStyle: 'medium', timeStyle: 'short' })
+}
+
 export function timeAgo(value: string) {
   const delta = Date.now() - new Date(value).getTime()
   const minutes = Math.max(0, Math.round(delta / 60000))

@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from 'react'
 import { BrandLogo } from '@/components/brand-logo'
 import { AuthDivider, GoogleAuthButton } from '@/components/google-auth-button'
 import { PasswordInput } from '@/components/password-input'
+import { consumeGoogleAuthError } from '@/lib/google-auth-client'
 import { createClient } from '@/lib/supabase/client'
 
 export default function SignUpPage() {
@@ -14,6 +15,8 @@ export default function SignUpPage() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
+    const googleError = consumeGoogleAuthError()
+    if (googleError) setMessage(googleError)
     createClient().auth.getUser().then(({ data: { user } }) => {
       if (user) window.location.replace('/')
     })

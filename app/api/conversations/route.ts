@@ -1,4 +1,4 @@
-import { dbError, jsonError, jsonOk, parseJson, requireUser } from '@/lib/api/http'
+import { dbError, jsonError, jsonOk, parseJson, rejectIfRestricted, requireUser } from '@/lib/api/http'
 import type { Conversation, Profile } from '@/lib/types'
 
 type MemberRow = {
@@ -68,7 +68,7 @@ export async function GET() {
     messagesByConversation.set(message.conversation_id, list)
   }
 
-  const data = ((conversations ?? []) as Conversation[]).map((conversation) => {
+  const data = ((conversations ?? []) as unknown as Conversation[]).map((conversation) => {
     const thread = messagesByConversation.get(conversation.id) ?? []
     const people = membersByConversation.get(conversation.id) ?? []
     const other = people.find((member) => member.user_id !== auth.user.id)
@@ -97,6 +97,8 @@ export async function GET() {
 export async function POST(request: Request) {
   const auth = await requireUser()
   if (auth.response) return auth.response
+  const restricted = await rejectIfRestricted(auth.supabase, auth.user.id)
+  if (restricted) return restricted
   const body = await parseJson<{ recipient_id?: string; listing_id?: string | null }>(request)
   const recipientId = typeof body?.recipient_id === 'string' ? body.recipient_id : ''
   if (!recipientId || recipientId === auth.user.id) return jsonError('A valid recipient is required.')

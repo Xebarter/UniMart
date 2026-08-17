@@ -1,4 +1,4 @@
-import { dbError, jsonError, jsonOk, parseJson, requireUser } from '@/lib/api/http'
+import { dbError, jsonError, jsonOk, parseJson, rejectIfRestricted, requireUser } from '@/lib/api/http'
 import { createPaytotaPurchase } from '@/lib/payments/paytota'
 import { createDpoToken } from '@/lib/payments/dpo'
 import { checkoutErrorMessage, parsePaymentMethod, providerForMethod } from '@/lib/payments/methods'
@@ -12,6 +12,8 @@ function appUrl() {
 export async function POST(request: Request) {
   const auth = await requireUser()
   if (auth.response) return auth.response
+  const restricted = await rejectIfRestricted(auth.supabase, auth.user.id)
+  if (restricted) return restricted
   const body = await parseJson<{ listing_id?: string; method?: string }>(request)
   const listingId = body?.listing_id
   const method = parsePaymentMethod(body?.method)

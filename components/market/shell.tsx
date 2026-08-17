@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { X } from 'lucide-react'
 import { AuthPrompt } from '@/components/auth-prompt'
+import { RestrictedAccount } from '@/components/admin/restricted-account'
 import { AppSidebar, navItems } from '@/components/market/sidebar'
 import { TopBar } from '@/components/market/top-bar'
 import { useMarket } from '@/components/market/provider'
@@ -40,7 +41,9 @@ export function MarketShell({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           )}
-          {children}
+          {profile?.account_status === 'suspended' || profile?.account_status === 'banned' ? (
+            <RestrictedAccount status={profile.account_status} />
+          ) : children}
         </div>
       </div>
 

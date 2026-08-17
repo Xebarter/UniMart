@@ -33,79 +33,118 @@ async function verifyFirebaseIdToken(idToken: string) {
   return user
 }
 
+async function syncGoogleProfile(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  displayName: string,
+  photoUrl: string | null,
+  firebaseUid: string,
+  metadata: Record<string, unknown>,
+) {
+  if (photoUrl) {
+    await admin.auth.admin.updateUserById(userId, {
+      user_metadata: {
+        ...metadata,
+        display_name: metadata.display_name || displayName,
+        avatar_url: metadata.avatar_url || photoUrl,
+        picture: metadata.picture || photoUrl,
+        firebase_uid: firebaseUid,
+      },
+    })
+  }
+
+  const { data: profile } = await admin.from('profiles').select('avatar_url').eq('id', userId).maybeSingle()
+  if (!profile) {
+    await admin.from('profiles').insert({
+      id: userId,
+      display_name: String(metadata.display_name || displayName),
+      avatar_url: photoUrl,
+    })
+    return
+  }
+
+  if (photoUrl && !isUploadedAvatar(profile.avatar_url)) {
+    await admin.from('profiles').update({ avatar_url: photoUrl }).eq('id', userId)
+  }
+}
+
 export async function POST(request: Request) {
   const body = await parseJson<{ idToken?: string }>(request)
   const idToken = body?.idToken
   if (!idToken) return jsonError('idToken is required.')
 
+  let firebaseUser
   try {
-    const firebaseUser = await verifyFirebaseIdToken(idToken)
-    const email = firebaseUser.email?.trim().toLowerCase()
-    if (!email) return jsonError('This Google account does not have an email address.')
-
-    const admin = createAdminClient()
-    const displayName = firebaseUser.displayName || email.split('@')[0]
-    const photoUrl = firebaseUser.photoUrl || firebaseUser.photoURL || null
-    const { data: created, error: createError } = await admin.auth.admin.createUser({
-      email,
-      email_confirm: true,
-      user_metadata: {
-        display_name: displayName,
-        avatar_url: photoUrl,
-        picture: photoUrl,
-        firebase_uid: firebaseUser.localId,
-      },
-    })
-    if (createError && !/already been registered|already exists/i.test(createError.message)) {
-      return jsonError('Unable to create your UniMart account.', 400)
-    }
-
-    const existing = created?.user
-      ? { user: created.user }
-      : (await admin.auth.admin.getUserByEmail(email)).data
-    const userId = existing.user?.id
-    if (userId && photoUrl) {
-      const metadata = existing.user?.user_metadata ?? {}
-      await admin.auth.admin.updateUserById(userId, {
-        user_metadata: {
-          ...metadata,
-          display_name: metadata.display_name || displayName,
-          avatar_url: metadata.avatar_url || photoUrl,
-          picture: metadata.picture || photoUrl,
-          firebase_uid: firebaseUser.localId,
-        },
-      })
-      const { data: profile } = await admin.from('profiles').select('avatar_url').eq('id', userId).maybeSingle()
-      if (!profile) {
-        await admin.from('profiles').insert({
-          id: userId,
-          display_name: existing.user?.user_metadata?.display_name || displayName,
-          avatar_url: photoUrl,
-        })
-      } else if (!isUploadedAvatar(profile.avatar_url)) {
-        await admin.from('profiles').update({ avatar_url: photoUrl }).eq('id', userId)
-      }
-    }
-
-    const { data: link, error: linkError } = await admin.auth.admin.generateLink({
-      type: 'magiclink',
-      email,
-    })
-    const tokenHash = link?.properties?.hashed_token
-    if (linkError || !tokenHash) return jsonError('Unable to start your UniMart session.', 400)
-
-    const supabase = await createClient()
-    const { error: verifyError } = await supabase.auth.verifyOtp({
-      type: 'email',
-      token_hash: tokenHash,
-    })
-    if (verifyError) return jsonError('Unable to complete Google sign-in.', 400)
-
-    return jsonOk({ ok: true })
+    firebaseUser = await verifyFirebaseIdToken(idToken)
   } catch (err) {
-    console.error('[unimart:google-auth]', err instanceof Error ? err.message : err)
-    return jsonError('Google sign-in is unavailable right now. Please try again.', 401)
+    console.error('[unimart:google-auth] verify', err instanceof Error ? err.message : err)
+    return jsonError(err instanceof Error ? err.message : 'Invalid Firebase session.', 401)
   }
+
+  const email = firebaseUser.email?.trim().toLowerCase()
+  if (!email) return jsonError('This Google account does not have an email address.')
+
+  let admin
+  try {
+    admin = createAdminClient()
+  } catch (err) {
+    console.error('[unimart:google-auth] admin', err instanceof Error ? err.message : err)
+    return jsonError('Server auth is not configured.', 503)
+  }
+
+  const displayName = firebaseUser.displayName || email.split('@')[0]
+  const photoUrl = firebaseUser.photoUrl || firebaseUser.photoURL || null
+
+  const { error: createError } = await admin.auth.admin.createUser({
+    email,
+    email_confirm: true,
+    user_metadata: {
+      display_name: displayName,
+      avatar_url: photoUrl,
+      picture: photoUrl,
+      firebase_uid: firebaseUser.localId,
+    },
+  })
+  if (createError && !/already been registered|already exists/i.test(createError.message)) {
+    console.error('[unimart:google-auth] createUser', createError.message)
+    return jsonError('Unable to create your UniMart account.', 400)
+  }
+
+  const { data: link, error: linkError } = await admin.auth.admin.generateLink({
+    type: 'magiclink',
+    email,
+  })
+  const tokenHash = link?.properties?.hashed_token
+  if (linkError || !tokenHash) {
+    console.error('[unimart:google-auth] generateLink', linkError?.message)
+    return jsonError('Unable to start your UniMart session.', 400)
+  }
+
+  const supabase = await createClient()
+  const { data: authData, error: verifyError } = await supabase.auth.verifyOtp({
+    type: 'email',
+    token_hash: tokenHash,
+  })
+  if (verifyError) {
+    console.error('[unimart:google-auth] verifyOtp', verifyError.message)
+    return jsonError('Unable to complete Google sign-in.', 400)
+  }
+
+  const userId = authData.user?.id
+  if (userId) {
+    await syncGoogleProfile(
+      admin,
+      userId,
+      displayName,
+      photoUrl,
+      firebaseUser.localId,
+      authData.user?.user_metadata ?? {},
+    ).catch((err) => {
+      console.error('[unimart:google-auth] profile', err instanceof Error ? err.message : err)
+    })
+  }
+
+  return jsonOk({ ok: true })
 }
 
 export async function GET() {

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { CheckCircle2, MapPin } from 'lucide-react'
 import { Avatar } from '@/components/market/avatar'
+import { ShopCover } from '@/components/market/shop-cover'
 import { colorFromSeed } from '@/lib/format'
 import type { Profile, Shop } from '@/lib/types'
 
@@ -20,13 +21,7 @@ export function ShopHero({
   const person = owner ?? shop.profiles
   return (
     <section className="overflow-hidden rounded-[22px] border border-[#e5eae7] bg-white shadow-[0_12px_40px_rgba(36,62,57,0.05)] sm:rounded-[28px]">
-      <div className="relative h-28 bg-[#315e55] sm:h-44">
-        {shop.cover_url ? (
-          <img src={shop.cover_url} alt="" className="size-full object-cover" />
-        ) : (
-          <div className="pointer-events-none absolute -right-8 -top-16 h-56 w-64 rotate-[-16deg] rounded-[44%] border-[22px] border-[#47766b] opacity-55" />
-        )}
-      </div>
+      <ShopCover shop={shop} className="h-28 sm:h-44" />
       <div className="px-4 pb-5 sm:px-8 sm:pb-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-5">
           <div className="flex min-w-0 items-end gap-3 sm:gap-4">

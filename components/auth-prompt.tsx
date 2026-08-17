@@ -94,10 +94,9 @@ export function AuthPrompt({
           </p>
           <GoogleAuthButton
             label="Continue with Google"
-            checkRedirect={false}
             className="mt-6"
             onError={setMessage}
-            onSuccess={finish}
+            onSuccess={() => finish()}
           />
           <AuthDivider />
           <form onSubmit={submit} className="mt-5 space-y-3.5">

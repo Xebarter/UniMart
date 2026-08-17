@@ -1,6 +1,7 @@
 import { Analytics } from '@vercel/analytics/next'
 import { DM_Sans, Plus_Jakarta_Sans } from 'next/font/google'
 import type { Metadata, Viewport } from 'next'
+import { GoogleAuthRedirectHandler } from '@/components/google-auth-redirect'
 import './globals.css'
 
 const dmSans = DM_Sans({ subsets: ['latin'], variable: '--font-dm-sans' })
@@ -57,6 +58,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${dmSans.variable} ${plusJakarta.variable}`}>
       <body className="antialiased">
+        <GoogleAuthRedirectHandler />
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

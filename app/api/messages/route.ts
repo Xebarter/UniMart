@@ -1,4 +1,4 @@
-import { dbError, jsonError, jsonOk, parseJson, requireUser } from '@/lib/api/http'
+import { dbError, jsonError, jsonOk, parseJson, rejectIfRestricted, requireUser } from '@/lib/api/http'
 
 export async function GET(request: Request) {
   const auth = await requireUser()
@@ -13,6 +13,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const auth = await requireUser()
   if (auth.response) return auth.response
+  const restricted = await rejectIfRestricted(auth.supabase, auth.user.id)
+  if (restricted) return restricted
   const body = await parseJson<{ conversation_id?: string; body?: string }>(request)
   const conversationId = typeof body?.conversation_id === 'string' ? body.conversation_id : ''
   const message = typeof body?.body === 'string' ? body.body.trim() : ''

@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 import type { User } from '@supabase/supabase-js'
+import { isRestrictedStatus, loadAccountStatus, loadOperator } from '@/lib/admin/account'
 import { createClient } from '@/lib/supabase/server'
 import type { createClient as createServerSupabase } from '@/lib/supabase/server'
+import type { AdminOperator } from '@/lib/types'
 
 type Supabase = Awaited<ReturnType<typeof createServerSupabase>>
 
@@ -40,10 +42,32 @@ export async function requireUser(): Promise<
 
 export async function requireAdmin() {
   const auth = await requireUser()
-  if (auth.response) return { ...auth, admin: false }
+  if (auth.response) return { ...auth, admin: false, operator: null as AdminOperator | null }
   const { data: allowed } = await auth.supabase.rpc('is_admin')
-  if (!allowed) return { ...auth, admin: false, response: jsonError('Admin access required.', 403) }
-  return { ...auth, admin: true, response: null }
+  if (!allowed) return { ...auth, admin: false, operator: null as AdminOperator | null, response: jsonError('Admin access required.', 403) }
+  const operator = await loadOperator(auth.supabase, auth.user.id, auth.user.email || 'Admin')
+  if (isRestrictedStatus(operator.accountStatus)) {
+    return { ...auth, admin: false, operator, response: jsonError('This account is restricted.', 403) }
+  }
+  return { ...auth, admin: true, operator, response: null }
+}
+
+export async function requireFullAdmin() {
+  const auth = await requireAdmin()
+  if (auth.response) return auth
+  if (!auth.operator?.canManageRoles) {
+    return { ...auth, response: jsonError('Only admins can perform this action.', 403) }
+  }
+  return auth
+}
+
+export async function rejectIfRestricted(supabase: Awaited<ReturnType<typeof createServerSupabase>>, userId: string) {
+  const status = await loadAccountStatus(supabase, userId)
+  if (!isRestrictedStatus(status)) return null
+  return jsonError(
+    status === 'banned' ? 'This account has been banned.' : 'This account is suspended.',
+    403,
+  )
 }
 
 export async function parseJson<T = Record<string, unknown>>(request: Request): Promise<T | null> {

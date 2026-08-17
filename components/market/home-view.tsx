@@ -31,11 +31,24 @@ export function HomeView() {
           <p className="mt-3 max-w-[440px] text-sm leading-6 text-[#d4e4df] sm:mt-4 sm:text-[15px]">The trusted marketplace for students, creators, and businesses across Uganda.</p>
           <button type="button" onClick={requestPost} className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#f3c8ad] px-4 py-3 text-sm font-bold text-[#315e55] transition hover:bg-white sm:mt-7 sm:w-auto sm:py-2.5">Start selling <ArrowUpRight size={16} /></button>
         </div>
-        <div className="pointer-events-none absolute -right-8 -top-16 hidden h-[320px] w-[390px] rotate-[-16deg] rounded-[44%] border-[28px] border-[#47766b] opacity-65 md:block" />
-        <div className="absolute right-10 top-10 hidden h-20 w-20 rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur md:block">
-          <TrendingUp className="mb-3 text-[#f3c8ad]" size={23} />
-          <span className="block text-[10px] font-semibold text-[#d4e4df]">Live listings</span>
-          <span className="text-lg font-bold">{listings.length}</span>
+        <div className="pointer-events-none absolute -right-12 -top-20 hidden h-[340px] w-[400px] rotate-[-14deg] rounded-[44%] border-[26px] border-[#47766b]/70 md:block lg:-right-8 lg:-top-16" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[42%] bg-gradient-to-l from-[#244840]/35 to-transparent md:block" />
+        <div className="absolute right-5 top-1/2 z-10 hidden -translate-y-1/2 md:block lg:right-10">
+          <div className="flex min-w-[152px] items-center gap-3.5 rounded-[22px] border border-white/18 bg-white/[0.12] px-4 py-3.5 shadow-[0_18px_48px_rgba(8,24,20,0.22)] backdrop-blur-md">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-[14px] bg-[#f3c8ad]/18 ring-1 ring-[#f3c8ad]/25">
+              <TrendingUp className="text-[#f3c8ad]" size={20} strokeWidth={2.2} />
+            </div>
+            <div className="min-w-0">
+              <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#c7ddd6]">
+                <span className="relative flex size-1.5">
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#8fd4b8] opacity-60" />
+                  <span className="relative inline-flex size-1.5 rounded-full bg-[#a8e0c8]" />
+                </span>
+                Live listings
+              </p>
+              <p className="mt-1 font-display text-[1.65rem] font-bold leading-none tracking-[-0.04em] text-white">{listings.length}</p>
+            </div>
+          </div>
         </div>
       </section>
       <section className="mt-6 sm:mt-8">

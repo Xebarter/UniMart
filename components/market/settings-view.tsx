@@ -266,6 +266,7 @@ function AccountSection({
   }
 
   return (
+    <div className="space-y-5">
     <Card
       eyebrow="Identity"
       title="Account"
@@ -353,12 +354,13 @@ function AccountSection({
             <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#8b9994]">Account type</p>
             <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold capitalize text-[#29463f]">
               {profile.verified && <CheckCircle2 size={14} className="text-[#4e786a]" />}
-              {profile.role}{profile.verified ? ' · verified' : ''}
+              {profile.verified ? 'Student · verified' : 'Student'}
             </p>
           </div>
         </div>
       </div>
     </Card>
+    </div>
   )
 }
 

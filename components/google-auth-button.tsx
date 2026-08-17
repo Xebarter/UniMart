@@ -1,15 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import {
-  GoogleAuthProvider,
-  getRedirectResult,
-  signInWithPopup,
-  signInWithRedirect,
-  type UserCredential,
-} from 'firebase/auth'
 import { getSafeNextPath } from '@/lib/auth'
-import { getFirebaseAuth } from '@/lib/firebase'
+import { googleRedirectPending, onGoogleAuthDone, startGoogleSignIn } from '@/lib/google-auth-client'
 
 function GoogleMark() {
   return (
@@ -22,112 +15,50 @@ function GoogleMark() {
   )
 }
 
-function isCancelled(error: unknown) {
-  const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : ''
-  return code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request'
-}
-
-function shouldRedirect(error: unknown) {
-  const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : ''
-  return code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment'
-}
-
-async function createSupabaseSession(credential: UserCredential) {
-  const idToken = await credential.user.getIdToken()
-  const response = await fetch('/api/auth/firebase', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ idToken }),
-  })
-  const payload = (await response.json().catch(() => ({}))) as { error?: string }
-  if (!response.ok) throw new Error(payload.error || 'Unable to complete Google sign-in.')
-}
-
-function nextPath() {
-  const stored = sessionStorage.getItem('unimart_auth_next')
-  if (stored) sessionStorage.removeItem('unimart_auth_next')
-  return getSafeNextPath(stored || new URLSearchParams(window.location.search).get('next'))
-}
-
 export function GoogleAuthButton({
   label,
   onError,
   onSuccess,
-  checkRedirect = true,
   className = 'mt-6',
 }: {
   label: string
   onError: (message: string) => void
   onSuccess?: () => void | Promise<void>
-  checkRedirect?: boolean
   className?: string
 }) {
-  const [loading, setLoading] = useState(checkRedirect)
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (!checkRedirect) return
-    let cancelled = false
-    ;(async () => {
-      try {
-        const result = await getRedirectResult(getFirebaseAuth())
-        if (cancelled) return
-        if (result) {
-          await createSupabaseSession(result)
-          if (onSuccess) {
-            await onSuccess()
-            return
-          }
-          window.location.href = nextPath()
-          return
-        }
-      } catch {
-        if (!cancelled) onError('Google sign-in is unavailable right now. Please try again.')
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [checkRedirect, onError, onSuccess])
+    if (googleRedirectPending()) setLoading(true)
+    return onGoogleAuthDone(() => setLoading(false))
+  }, [])
 
   async function continueWithGoogle() {
     setLoading(true)
+    onError('')
     const next = getSafeNextPath(new URLSearchParams(window.location.search).get('next'))
-    sessionStorage.setItem('unimart_auth_next', next)
-    const auth = getFirebaseAuth()
-    const provider = new GoogleAuthProvider()
-    provider.setCustomParameters({ prompt: 'select_account' })
-    provider.addScope('email')
-    provider.addScope('profile')
+
     try {
-      const result = await signInWithPopup(auth, provider)
-      await createSupabaseSession(result)
-      if (onSuccess) {
-        await onSuccess()
-        setLoading(false)
+      const result = await startGoogleSignIn(next)
+      if (result.ok) {
+        if (onSuccess) {
+          await onSuccess()
+          return
+        }
+        window.location.replace(result.next)
         return
       }
-      window.location.href = next
+      if (result.cancelled) setLoading(false)
     } catch (error) {
-      if (isCancelled(error)) {
-        setLoading(false)
-        return
-      }
-      if (shouldRedirect(error)) {
-        await signInWithRedirect(auth, provider)
-        return
-      }
       setLoading(false)
-      onError('Google sign-in is unavailable right now. Please try again.')
+      onError(error instanceof Error ? error.message : 'Google sign-in is unavailable right now. Please try again.')
     }
   }
 
   return (
     <button
       type="button"
-      onClick={continueWithGoogle}
+      onClick={() => { void continueWithGoogle() }}
       disabled={loading}
       className={`inline-flex h-11 w-full items-center justify-center gap-2.5 rounded-xl border border-border bg-white text-sm font-bold text-foreground transition hover:bg-muted disabled:opacity-60 ${className}`}
     >
