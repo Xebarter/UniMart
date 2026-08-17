@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Heart, MapPin, X } from 'lucide-react'
 import { Avatar } from '@/components/market/avatar'
 import { ListingPhoto } from '@/components/listing-photo'
+import { ListingShareButton } from '@/components/market/listing-share'
 import { colorFromSeed, formatUGX, listingTag, rentPeriodSuffix } from '@/lib/format'
 import { marketPaths } from '@/lib/market-paths'
 import type { Listing } from '@/lib/types'
@@ -153,9 +154,12 @@ export function ListingCard({
           <ListingPhoto listing={item} alt={item.title} className={`${compact ? 'aspect-square sm:aspect-[4/3]' : 'aspect-[4/3]'} w-full`} />
           <span className={`absolute z-[2] rounded-full bg-white/90 font-bold text-[#52635e] backdrop-blur-sm ${compact ? 'left-2 top-2 px-1.5 py-0.5 text-[9px] sm:left-3 sm:top-3 sm:px-2.5 sm:py-1 sm:text-[10px]' : 'left-3 top-3 px-2.5 py-1 text-[10px]'}`}>{item.category}</span>
         </Link>
-        {compact && saveControl && (
+        {compact && saveControl ? (
           <div className="absolute right-2 top-2 z-[3] sm:right-2.5 sm:top-2.5">{saveControl}</div>
-        )}
+        ) : null}
+        <div className={`absolute z-[3] ${compact ? 'bottom-2 right-2 sm:bottom-2.5 sm:right-2.5' : 'bottom-2.5 right-2.5'}`}>
+          <ListingShareButton listing={item} compact={compact} />
+        </div>
         {onRemove && (
           <RemoveButton
             onRemove={onRemove}

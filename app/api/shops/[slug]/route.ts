@@ -12,6 +12,7 @@ export async function GET(_request: Request, { params }: Params) {
   const { data: shop, error } = await supabase.from('shops').select(SHOP_SELECT).eq('slug', slug).maybeSingle()
   if (error) return dbError(error, 'Unable to load shop.')
   if (!shop) return jsonError('Shop not found.', 404)
+  if ((shop as { status?: string }).status === 'disabled') return jsonError('Shop not found.', 404)
 
   const [{ data: listings }, { count: followerCount }] = await Promise.all([
     supabase.from('listings').select(LISTING_SELECT).eq('shop_id', shop.id).eq('status', 'active').order('featured_until', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false }),

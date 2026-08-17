@@ -14,6 +14,7 @@ import type { Article, Conversation, Listing, Notification, Profile, Shop } from
 type MarketContextValue = {
   profile: Profile | null
   listings: Listing[]
+  shops: Shop[]
   articles: Article[]
   myListings: Listing[]
   myShop: Shop | null
@@ -62,6 +63,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   const [category, setCategory] = useState<MarketCategory>('All')
   const [toast, setToast] = useState('')
   const [listings, setListings] = useState<Listing[]>([])
+  const [shops, setShops] = useState<Shop[]>([])
   const [myListings, setMyListings] = useState<Listing[]>([])
   const [myShop, setMyShop] = useState<Shop | null>(null)
   const [savedListings, setSavedListings] = useState<Listing[]>([])
@@ -86,13 +88,15 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     const health = await fetch('/api/health').then((response) => response.json()).catch(() => ({ database: 'ready' }))
     if (generation !== refreshGeneration.current) return
     setSetupNeeded(health.database === 'uninitialized')
-    const [listingResult, articleResult] = await Promise.all([
+    const [listingResult, articleResult, shopResult] = await Promise.all([
       api.listings('limit=48').catch(() => ({ data: [] as Listing[] })),
       api.articles().catch(() => ({ data: [] as Article[] })),
+      api.shops('limit=12').catch(() => ({ data: [] as Shop[] })),
     ])
     if (generation !== refreshGeneration.current) return
     setListings(listingResult.data)
     setArticles(articleResult.data)
+    setShops(shopResult.data)
     if (!sessionUser) {
       setProfile(null)
       setSaved([])
@@ -243,6 +247,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   const value = useMemo<MarketContextValue>(() => ({
     profile,
     listings,
+    shops,
     articles,
     myListings,
     myShop,
@@ -295,6 +300,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     saved,
     savedListings,
     setupNeeded,
+    shops,
     toast,
     toggleSaved,
     updateMyListing,

@@ -41,13 +41,24 @@ export function listingShareDescription(listing: Listing, max = 200) {
   return `${lead.slice(0, max - 1).trim()}…`
 }
 
-export function listingShareTitle(listing: Listing) {
+export function listingShareTitle(listing: Pick<Listing, 'title' | 'price' | 'currency'>) {
   const price = formatUGX(Number(listing.price), listing.currency)
   return `${listing.title} · ${price}`
 }
 
+export function listingShareText(listing: Pick<Listing, 'title' | 'price' | 'currency' | 'category' | 'rent_period'>) {
+  const price = formatUGX(Number(listing.price), listing.currency)
+  const period = listing.category === 'Rentals' ? rentPeriodSuffix(listing.rent_period) : ''
+  return `Found this on UniMart: ${listing.title} · ${price}${period ? ` ${period}` : ''}`
+}
+
 export function listingShareUrl(id: string) {
   return new URL(marketPaths.listing(id), appBaseUrl()).toString()
+}
+
+export function listingAbsoluteUrl(id: string) {
+  const origin = typeof window !== 'undefined' ? window.location.origin : appBaseUrl()
+  return new URL(marketPaths.listing(id), origin).toString()
 }
 
 export function listingOpenGraphImageUrl(id: string) {

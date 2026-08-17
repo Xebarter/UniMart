@@ -55,6 +55,7 @@ export const api = {
     request('/api/follows', { method: 'DELETE', body: JSON.stringify({ following_id }) }),
   follows: () => request<{ data: FollowedProfile[] }>('/api/follows'),
   shop: () => request<{ data: Shop | null }>('/api/shops'),
+  shops: (params?: string) => request<{ data: Shop[] }>(`/api/shops${params ? `?${params}` : ''}`),
   shopByOwner: (ownerId: string) => request<{ data: Shop | null }>(`/api/shops?owner_id=${ownerId}`),
   shopBySlug: (slug: string) =>
     request<{ data: Shop; listings: Listing[]; follower_count: number; following: boolean }>(`/api/shops/${slug}`),

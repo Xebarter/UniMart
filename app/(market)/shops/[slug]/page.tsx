@@ -105,8 +105,10 @@ export default function PublicShopPage() {
         ))}
       </div>
       {!listings.length && (
-        <p className="mt-6 rounded-[24px] border border-dashed border-[#d5e4de] bg-[#f7fbf9] px-6 py-10 text-center text-sm text-[#748780]">
-          Nothing in this shop yet.
+        <p className="mt-6 rounded-[24px] border border-dashed border-[#d5e4de] bg-[#f7fbf9] px-6 py-10 text-center text-sm leading-6 text-[#748780]">
+          {isOwner
+            ? 'Add listings from your shop hub to show products here.'
+            : 'This shop has not listed any products yet. Follow to get notified when they do.'}
         </p>
       )}
     </div>

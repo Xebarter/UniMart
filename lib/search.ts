@@ -1,4 +1,4 @@
-import { LISTING_CATEGORIES, type Listing, type ListingCategory } from '@/lib/types'
+import { LISTING_CATEGORIES, type Listing, type ListingCategory, type Shop } from '@/lib/types'
 
 export type MarketCategory = 'All' | ListingCategory
 
@@ -49,4 +49,43 @@ export function groupListingsByCategory(listings: Listing[]) {
     category,
     items: listings.filter((item) => item.category === category),
   })).filter((group) => group.items.length > 0)
+}
+
+export function shopSearchText(shop: Shop) {
+  const owner = shop.profiles
+  return `${shop.name} ${shop.slug} ${shop.bio ?? ''} ${owner?.display_name ?? ''} ${owner?.campus ?? ''} ${owner?.university ?? ''}`.toLowerCase()
+}
+
+export function matchesShopQuery(shop: Shop, query: string) {
+  const q = query.trim().toLowerCase()
+  if (!q) return true
+  return shopSearchText(shop).includes(q)
+}
+
+export function scoreShop(shop: Shop, query: string) {
+  const q = query.trim().toLowerCase()
+  if (!q) return 0
+  const name = shop.name.toLowerCase()
+  const slug = shop.slug.toLowerCase()
+  const owner = (shop.profiles?.display_name ?? '').toLowerCase()
+  if (name === q || slug === q) return 100
+  if (name.startsWith(q) || slug.startsWith(q)) return 86
+  if (name.includes(q) || slug.includes(q)) return 72
+  if (owner.startsWith(q) || owner.includes(q)) return 54
+  if ((shop.bio ?? '').toLowerCase().includes(q)) return 34
+  return 18
+}
+
+export function rankShops(shops: Shop[], query: string) {
+  const q = query.trim()
+  const matched = q ? shops.filter((shop) => matchesShopQuery(shop, q)) : shops
+  if (!q) return matched
+  return [...matched].sort((a, b) => scoreShop(b, q) - scoreShop(a, q))
+}
+
+export function mergeShops(local: Shop[], remote: Shop[]) {
+  const map = new Map<string, Shop>()
+  for (const shop of local) map.set(shop.id, shop)
+  for (const shop of remote) map.set(shop.id, shop)
+  return [...map.values()]
 }

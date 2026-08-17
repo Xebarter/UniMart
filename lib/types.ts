@@ -68,6 +68,7 @@ export type Shop = {
   updated_at: string
   listing_count?: number
   follower_count?: number
+  following?: boolean
   profiles?: Pick<Profile, 'id' | 'display_name' | 'university' | 'campus' | 'avatar_url' | 'verified'> | null
 }
 

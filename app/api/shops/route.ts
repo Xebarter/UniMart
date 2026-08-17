@@ -1,7 +1,10 @@
+import { ilikeOr, sanitizeSearch } from '@/lib/admin/query'
 import { createClient } from '@/lib/supabase/server'
 import { dbError, jsonError, jsonOk, parseJson, rejectIfRestricted, requireUser } from '@/lib/api/http'
 import { slugifyShopName } from '@/lib/shop'
 import type { Shop } from '@/lib/types'
+
+type Supabase = Awaited<ReturnType<typeof createClient>>
 
 const SHOP_SELECT = '*, profiles:owner_id(id, display_name, university, campus, avatar_url, verified)'
 
@@ -32,14 +35,84 @@ function shopFields(body: Record<string, unknown>, { requireName }: { requireNam
   return { name, bio, coverUrl, requestedSlug, error }
 }
 
+async function enrichShops(supabase: Supabase, shops: Shop[], userId?: string | null) {
+  if (!shops.length) return []
+
+  const shopIds = shops.map((shop) => shop.id)
+  const ownerIds = shops.map((shop) => shop.owner_id)
+
+  const [{ data: listings }, { data: follows }] = await Promise.all([
+    supabase.from('listings').select('shop_id').in('shop_id', shopIds).eq('status', 'active'),
+    supabase.from('follows').select('following_id').in('following_id', ownerIds),
+  ])
+
+  const listingCounts = new Map<string, number>()
+  for (const row of listings ?? []) {
+    if (row.shop_id) listingCounts.set(row.shop_id, (listingCounts.get(row.shop_id) ?? 0) + 1)
+  }
+
+  const followerCounts = new Map<string, number>()
+  for (const row of follows ?? []) {
+    followerCounts.set(row.following_id, (followerCounts.get(row.following_id) ?? 0) + 1)
+  }
+
+  let followingSet = new Set<string>()
+  if (userId) {
+    const { data: myFollows } = await supabase
+      .from('follows')
+      .select('following_id')
+      .eq('follower_id', userId)
+      .in('following_id', ownerIds)
+    followingSet = new Set((myFollows ?? []).map((row) => row.following_id))
+  }
+
+  return shops.map((shop) => ({
+    ...shop,
+    listing_count: listingCounts.get(shop.id) ?? 0,
+    follower_count: followerCounts.get(shop.owner_id) ?? 0,
+    following: userId ? followingSet.has(shop.owner_id) : false,
+  }))
+}
+
+async function browseShops(request: Request) {
+  const supabase = await createClient()
+  const { searchParams } = new URL(request.url)
+  const q = sanitizeSearch(searchParams.get('q'))
+  const limit = Math.min(Number(searchParams.get('limit') ?? 12) || 12, 48)
+  const offset = Math.max(Number(searchParams.get('offset') ?? 0) || 0, 0)
+
+  let query = supabase.from('shops').select(SHOP_SELECT).order('created_at', { ascending: false }).range(offset, offset + limit - 1)
+  query = query.eq('status', 'active')
+  if (q) query = query.or(ilikeOr(['name', 'slug', 'bio'], q))
+
+  let { data, error } = await query
+  if (error && /status/i.test(error.message ?? '')) {
+    let fallback = supabase.from('shops').select(SHOP_SELECT).order('created_at', { ascending: false }).range(offset, offset + limit - 1)
+    if (q) fallback = fallback.or(ilikeOr(['name', 'slug', 'bio'], q))
+    const result = await fallback
+    data = result.data
+    error = result.error
+  }
+  if (error) return dbError(error, 'Unable to load shops.')
+
+  const { data: { user } } = await supabase.auth.getUser()
+  const enriched = await enrichShops(supabase, (data ?? []) as Shop[], user?.id)
+  return jsonOk({ data: enriched })
+}
+
 export async function GET(request: Request) {
-  const ownerId = new URL(request.url).searchParams.get('owner_id')
+  const { searchParams } = new URL(request.url)
+  const ownerId = searchParams.get('owner_id')
   if (ownerId) {
     const supabase = await createClient()
     const { data, error } = await supabase.from('shops').select(SHOP_SELECT).eq('owner_id', ownerId).maybeSingle()
     if (error) return dbError(error, 'Unable to load shop.')
     return jsonOk({ data: data ?? null })
   }
+
+  const q = sanitizeSearch(searchParams.get('q'))
+  const limitParam = searchParams.get('limit')
+  if (limitParam !== null || q) return browseShops(request)
 
   const auth = await requireUser()
   if (auth.response) return auth.response

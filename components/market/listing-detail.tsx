@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { ListingPhoto } from '@/components/listing-photo'
 import { Avatar } from '@/components/market/avatar'
+import { ListingShareSheet, ListingShareTrigger } from '@/components/market/listing-share'
 import { ListingCard } from '@/components/market/listing-card'
 import { useMarket } from '@/components/market/provider'
 import { api } from '@/lib/api-client'
@@ -42,6 +43,7 @@ export function ListingDetail({ listing }: { listing: Listing }) {
   const [sellerShop, setSellerShop] = useState<Shop | null>(null)
   const [shopId, setShopId] = useState(listing.shop_id ?? null)
   const [photoIndex, setPhotoIndex] = useState(0)
+  const [shareOpen, setShareOpen] = useState(false)
   const isOwner = profile?.id === listing.owner_id
   const isSaved = saved.includes(listing.id)
   const shop = isOwner ? myShop : sellerShop
@@ -146,15 +148,6 @@ export function ListingDetail({ listing }: { listing: Listing }) {
     }
   }
 
-  async function copyLink() {
-    try {
-      await navigator.clipboard.writeText(window.location.href)
-      notify('Link copied')
-    } catch {
-      notify('Unable to copy link')
-    }
-  }
-
   function shiftPhoto(delta: number) {
     setPhotoIndex((current) => (current + delta + photos.length) % photos.length)
   }
@@ -196,14 +189,17 @@ export function ListingDetail({ listing }: { listing: Listing }) {
                     <span className="rounded-full bg-[#29463f] px-2.5 py-1 text-[10px] font-bold text-white shadow-sm">Sold</span>
                   )}
                 </div>
-                <button
-                  type="button"
-                  aria-label={isSaved ? 'Remove from saved' : 'Save listing'}
-                  onClick={() => { void toggleSaved(listing.id) }}
-                  className={`flex size-10 items-center justify-center rounded-full border shadow-sm backdrop-blur-sm transition ${isSaved ? 'border-[#f0c7b3] bg-[#fff5f0] text-[#d1734b]' : 'border-white/70 bg-white/92 text-[#8b9994] hover:text-[#d1734b]'}`}
-                >
-                  <Heart size={16} fill={isSaved ? 'currentColor' : 'none'} />
-                </button>
+                <div className="flex items-center gap-2">
+                  <ListingShareTrigger listing={listing} onClick={() => setShareOpen(true)} className="size-10 border-white/70 bg-white/92 text-[#8b9994] shadow-sm backdrop-blur-sm hover:text-[#315e55]" />
+                  <button
+                    type="button"
+                    aria-label={isSaved ? 'Remove from saved' : 'Save listing'}
+                    onClick={() => { void toggleSaved(listing.id) }}
+                    className={`flex size-10 items-center justify-center rounded-full border shadow-sm backdrop-blur-sm transition ${isSaved ? 'border-[#f0c7b3] bg-[#fff5f0] text-[#d1734b]' : 'border-white/70 bg-white/92 text-[#8b9994] hover:text-[#d1734b]'}`}
+                  >
+                    <Heart size={16} fill={isSaved ? 'currentColor' : 'none'} />
+                  </button>
+                </div>
               </div>
               {photos.length > 1 && (
                 <>
@@ -257,8 +253,19 @@ export function ListingDetail({ listing }: { listing: Listing }) {
             {statusCopy && (
               <p className="mb-4 rounded-2xl bg-[#f4f7f6] px-3.5 py-2.5 text-xs font-semibold text-[#526861]">{statusCopy}</p>
             )}
-            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#d1734b]">{listing.category}</p>
-            <h1 className="mt-2 font-display text-[1.65rem] font-bold leading-tight tracking-[-0.04em] text-[#243e39] sm:text-[1.85rem]">{listing.title}</h1>
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#d1734b]">{listing.category}</p>
+                <h1 className="mt-2 font-display text-[1.65rem] font-bold leading-tight tracking-[-0.04em] text-[#243e39] sm:text-[1.85rem]">{listing.title}</h1>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShareOpen(true)}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#dfe7e3] bg-[#f7fbf9] px-3.5 py-2.5 text-xs font-bold text-[#315e55] shadow-[0_1px_2px_rgba(36,62,57,0.04)] transition hover:border-[#b8d1c9] hover:bg-white hover:text-[#243e39]"
+              >
+                <Share2 size={14} /> Share
+              </button>
+            </div>
             <p className="mt-3 font-display text-2xl font-bold tracking-[-0.03em] text-[#d1734b]">
               {formatUGX(Number(listing.price), listing.currency)}
               {listing.category === 'Rentals' && rentPeriodSuffix(listing.rent_period) && (
@@ -299,6 +306,13 @@ export function ListingDetail({ listing }: { listing: Listing }) {
                       <Store size={15} /> Open a shop
                     </Link>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => setShareOpen(true)}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#dfe7e3] px-4 py-3 text-sm font-bold text-[#315e55] transition hover:border-[#b8d1c9] hover:bg-[#f7fbf9]"
+                  >
+                    <Share2 size={15} /> Share listing
+                  </button>
                 </>
               ) : (
                 <>
@@ -314,7 +328,7 @@ export function ListingDetail({ listing }: { listing: Listing }) {
                     <button type="button" onClick={() => { void toggleSaved(listing.id) }} className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#dfe7e3] px-3 py-2.5 text-xs font-bold text-[#315e55] transition hover:border-[#b8d1c9] hover:bg-[#f7fbf9]">
                       <Heart size={14} fill={isSaved ? 'currentColor' : 'none'} className={isSaved ? 'text-[#d1734b]' : ''} /> {isSaved ? 'Saved' : 'Save'}
                     </button>
-                    <button type="button" onClick={() => { void copyLink() }} className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#dfe7e3] px-3 py-2.5 text-xs font-bold text-[#315e55] transition hover:border-[#b8d1c9] hover:bg-[#f7fbf9]">
+                    <button type="button" onClick={() => setShareOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#dfe7e3] px-3 py-2.5 text-xs font-bold text-[#315e55] transition hover:border-[#b8d1c9] hover:bg-[#f7fbf9]">
                       <Share2 size={14} /> Share
                     </button>
                   </div>
@@ -377,6 +391,8 @@ export function ListingDetail({ listing }: { listing: Listing }) {
           </div>
         </section>
       )}
+
+      <ListingShareSheet listing={listing} open={shareOpen} onClose={() => setShareOpen(false)} />
 
       {payOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">

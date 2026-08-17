@@ -1,26 +1,76 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ArrowUpRight, BookOpen, ChevronRight, Filter, Store, TrendingUp } from 'lucide-react'
 import { ListingCard } from '@/components/market/listing-card'
+import { ShopCard } from '@/components/market/shop-card'
 import { useMarket } from '@/components/market/provider'
+import { api } from '@/lib/api-client'
 import { readTime } from '@/lib/format'
 import { marketPaths } from '@/lib/market-paths'
-import { rankListings, type MarketCategory } from '@/lib/search'
+import { mergeShops, rankListings, rankShops, type MarketCategory } from '@/lib/search'
+import type { Shop } from '@/lib/types'
 
 const CATEGORIES: MarketCategory[] = ['All', 'Products', 'Services', 'Rentals', 'Gigs']
 const PREVIEW_COUNT = 8
+const SHOP_PREVIEW_COUNT = 8
 
 export function HomeView() {
-  const { query, category, setCategory, listings, articles, saved, toggleSaved, loading, requestPost, requestShop } = useMarket()
+  const { query, category, setCategory, listings, shops, articles, saved, toggleSaved, loading, requestPost, requestShop } = useMarket()
   const [showAll, setShowAll] = useState(false)
+  const [remoteShops, setRemoteShops] = useState<Shop[]>([])
+  const [shopsSearching, setShopsSearching] = useState(false)
+
   const filtered = useMemo(() => {
     const ranked = rankListings(listings, query)
     return category === 'All' ? ranked : ranked.filter((item) => item.category === category)
   }, [category, query, listings])
+
   const searching = Boolean(query.trim())
+
+  useEffect(() => {
+    const q = query.trim()
+    if (q.length < 2) {
+      setRemoteShops([])
+      setShopsSearching(false)
+      return
+    }
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => {
+      setShopsSearching(true)
+      api.shops(`q=${encodeURIComponent(q)}&limit=12`)
+        .then((result) => {
+          if (!controller.signal.aborted) setRemoteShops(result.data)
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) setRemoteShops([])
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setShopsSearching(false)
+        })
+    }, 220)
+    return () => {
+      controller.abort()
+      window.clearTimeout(timer)
+    }
+  }, [query])
+
+  const matchedShops = useMemo(
+    () => rankShops(mergeShops(shops, remoteShops), query),
+    [query, remoteShops, shops],
+  )
+
+  const visibleShops = searching ? matchedShops : shops.slice(0, SHOP_PREVIEW_COUNT)
   const visible = searching || showAll ? filtered : filtered.slice(0, PREVIEW_COUNT)
+
+  const resultSummary = searching
+    ? [
+        matchedShops.length ? `${matchedShops.length} shop${matchedShops.length === 1 ? '' : 's'}` : null,
+        `${filtered.length} listing${filtered.length === 1 ? '' : 's'}`,
+        category !== 'All' ? `in ${category}` : null,
+      ].filter(Boolean).join(' · ')
+    : 'Listings from your university community'
 
   return (
     <div className="mx-auto w-full max-w-[1180px] px-4 py-5 sm:px-8 sm:py-8 lg:px-10">
@@ -65,17 +115,51 @@ export function HomeView() {
           ))}
         </div>
       </section>
+
+      {!searching && visibleShops.length > 0 ? (
+        <section className="mt-6 sm:mt-8">
+          <div className="mb-4 flex items-end justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#d1734b]">Storefronts</p>
+              <h2 className="mt-1 font-display text-lg font-bold tracking-[-0.025em] text-[#29463f] sm:text-xl">Shops on campus</h2>
+              <p className="mt-1 text-xs text-[#95a19d]">Follow a shop to keep up with new listings</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
+            {visibleShops.map((shop) => (
+              <ShopCard key={shop.id} shop={shop} compact />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {searching && (visibleShops.length > 0 || shopsSearching) ? (
+        <section className="mt-6 sm:mt-8">
+          <div className="mb-4 flex items-end justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="font-display text-lg font-bold tracking-[-0.025em] text-[#29463f] sm:text-xl">Matching shops</h2>
+              <p className="mt-1 text-xs text-[#95a19d]">
+                {shopsSearching && !visibleShops.length ? 'Searching shops…' : `${visibleShops.length} storefront${visibleShops.length === 1 ? '' : 's'}`}
+              </p>
+            </div>
+          </div>
+          {visibleShops.length ? (
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
+              {visibleShops.map((shop) => (
+                <ShopCard key={shop.id} shop={shop} compact />
+              ))}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
       <section className="mt-6 sm:mt-7">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h2 className="font-display text-lg font-bold tracking-[-0.025em] text-[#29463f] sm:text-xl">
               {searching ? `Results for “${query.trim()}”` : 'Fresh on campus'}
             </h2>
-            <p className="mt-1 text-xs text-[#95a19d]">
-              {searching
-                ? `${filtered.length} listing${filtered.length === 1 ? '' : 's'}${category !== 'All' ? ` in ${category}` : ''}`
-                : 'Listings from your university community'}
-            </p>
+            <p className="mt-1 text-xs text-[#95a19d]">{resultSummary}</p>
           </div>
           <button className="flex shrink-0 items-center gap-1 rounded-lg border border-[#e5eae7] px-2.5 py-2 text-xs font-semibold text-[#6e8079] sm:px-3"><Filter size={14} /> <span className="hidden sm:inline">Filters</span></button>
         </div>
@@ -100,7 +184,11 @@ export function HomeView() {
             )}
           </>
         ) : (
-          <div className="rounded-2xl border border-dashed border-[#d9e5e0] bg-white p-8 text-center text-sm text-[#81908b] sm:p-10">No listings match your search yet. Be the first to post.</div>
+          <div className="rounded-2xl border border-dashed border-[#d9e5e0] bg-white p-8 text-center text-sm text-[#81908b] sm:p-10">
+            {searching && matchedShops.length
+              ? 'No listings match this search yet. Check the matching shops above.'
+              : 'No listings match your search yet. Be the first to post.'}
+          </div>
         )}
       </section>
       <section className="mt-8 grid gap-4 sm:mt-10 sm:gap-5 lg:grid-cols-[1.2fr_0.8fr]">
