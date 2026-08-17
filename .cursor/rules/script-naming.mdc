@@ -1,0 +1,18 @@
+---
+description: Number generated scripts from 001 onward
+alwaysApply: true
+---
+
+# Script naming
+
+All files generated in `scripts/` use a zero-padded 3-digit prefix, then an underscore, then a kebab-case name.
+
+- Next file after the highest existing number: `001_schema.sql`, `002_admin-roles.sql`, then `003_...`
+- Never skip the prefix, reuse a number, or leave unnumbered scripts in `scripts/`
+- SQL migrations stay additive; do not rename applied files unless the user asks
+
+```
+scripts/001_schema.sql
+scripts/002_admin-roles.sql
+scripts/003_example.sql
+```
