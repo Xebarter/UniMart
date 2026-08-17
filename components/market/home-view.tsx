@@ -12,7 +12,7 @@ import { marketPaths } from '@/lib/market-paths'
 import { mergeShops, rankListings, rankShops, type MarketCategory } from '@/lib/search'
 import type { Shop } from '@/lib/types'
 
-const CATEGORIES: MarketCategory[] = ['All', 'Products', 'Services', 'Rentals', 'Gigs']
+const CATEGORIES: MarketCategory[] = ['All', 'Products', 'Services', 'Rentals', 'Gigs', 'Shops']
 const PREVIEW_COUNT = 8
 const SHOP_PREVIEW_COUNT = 8
 
@@ -24,10 +24,14 @@ export function HomeView() {
 
   const filtered = useMemo(() => {
     const ranked = rankListings(listings, query)
-    return category === 'All' ? ranked : ranked.filter((item) => item.category === category)
+    if (category === 'All' || category === 'Shops') return ranked
+    return ranked.filter((item) => item.category === category)
   }, [category, query, listings])
 
   const searching = Boolean(query.trim())
+  const shopsSelected = category === 'Shops'
+  const showListings = !shopsSelected
+  const showShops = shopsSelected || category === 'All' || searching
 
   useEffect(() => {
     const q = query.trim()
@@ -61,16 +65,18 @@ export function HomeView() {
     [query, remoteShops, shops],
   )
 
-  const visibleShops = searching ? matchedShops : shops.slice(0, SHOP_PREVIEW_COUNT)
+  const visibleShops = searching || shopsSelected ? matchedShops : shops.slice(0, SHOP_PREVIEW_COUNT)
   const visible = searching || showAll ? filtered : filtered.slice(0, PREVIEW_COUNT)
 
   const resultSummary = searching
     ? [
-        matchedShops.length ? `${matchedShops.length} shop${matchedShops.length === 1 ? '' : 's'}` : null,
         `${filtered.length} listing${filtered.length === 1 ? '' : 's'}`,
-        category !== 'All' ? `in ${category}` : null,
+        matchedShops.length ? `${matchedShops.length} shop${matchedShops.length === 1 ? '' : 's'}` : null,
+        category !== 'All' && category !== 'Shops' ? `in ${category}` : null,
       ].filter(Boolean).join(' · ')
-    : 'Listings from your university community'
+    : shopsSelected
+      ? 'Storefronts from your university community'
+      : 'Listings from your university community'
 
   return (
     <div className="mx-auto w-full max-w-[1180px] px-4 py-5 sm:px-8 sm:py-8 lg:px-10">
@@ -116,13 +122,54 @@ export function HomeView() {
         </div>
       </section>
 
-      {!searching && visibleShops.length > 0 ? (
+      {showListings ? (
+        <section className="mt-6 sm:mt-7">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="font-display text-lg font-bold tracking-[-0.025em] text-[#29463f] sm:text-xl">
+                {searching ? `Results for “${query.trim()}”` : 'Fresh on campus'}
+              </h2>
+              <p className="mt-1 text-xs text-[#95a19d]">{resultSummary}</p>
+            </div>
+            <button className="flex shrink-0 items-center gap-1 rounded-lg border border-[#e5eae7] px-2.5 py-2 text-xs font-semibold text-[#6e8079] sm:px-3"><Filter size={14} /> <span className="hidden sm:inline">Filters</span></button>
+          </div>
+          {loading ? (
+            <div className="rounded-2xl border border-dashed border-[#d9e5e0] bg-white p-8 text-center text-sm text-[#81908b]">Loading listings…</div>
+          ) : filtered.length ? (
+            <>
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4">
+                {visible.map((item) => (
+                  <ListingCard key={item.id} item={item} saved={saved.includes(item.id)} toggleSaved={toggleSaved} compact />
+                ))}
+              </div>
+              {filtered.length > PREVIEW_COUNT && !searching && (
+                <button
+                  type="button"
+                  onClick={() => setShowAll((open) => !open)}
+                  className="mt-4 flex w-full items-center justify-center gap-1 rounded-xl border border-[#e5eae7] bg-white py-2.5 text-xs font-bold text-[#315e55] hover:border-[#b8d1c9] sm:mt-5"
+                >
+                  {showAll ? 'Show fewer listings' : `See ${filtered.length - PREVIEW_COUNT} more listing${filtered.length - PREVIEW_COUNT === 1 ? '' : 's'}`}
+                  <ChevronRight size={14} className={showAll ? 'rotate-[-90deg]' : 'rotate-90'} />
+                </button>
+              )}
+            </>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-[#d9e5e0] bg-white p-8 text-center text-sm text-[#81908b] sm:p-10">
+              {searching && matchedShops.length
+                ? 'No listings match this search yet. Matching shops are below.'
+                : 'No listings match your search yet. Be the first to post.'}
+            </div>
+          )}
+        </section>
+      ) : null}
+
+      {showShops && !searching && visibleShops.length > 0 ? (
         <section className="mt-6 sm:mt-8">
           <div className="mb-4 flex items-end justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#d1734b]">Storefronts</p>
               <h2 className="mt-1 font-display text-lg font-bold tracking-[-0.025em] text-[#29463f] sm:text-xl">Shops on campus</h2>
-              <p className="mt-1 text-xs text-[#95a19d]">Follow a shop to keep up with new listings</p>
+              <p className="mt-1 text-xs text-[#95a19d]">{shopsSelected ? resultSummary : 'Follow a shop to keep up with new listings'}</p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
@@ -133,7 +180,7 @@ export function HomeView() {
         </section>
       ) : null}
 
-      {searching && (visibleShops.length > 0 || shopsSearching) ? (
+      {showShops && searching && (visibleShops.length > 0 || shopsSearching) ? (
         <section className="mt-6 sm:mt-8">
           <div className="mb-4 flex items-end justify-between gap-3">
             <div className="min-w-0">
@@ -153,44 +200,13 @@ export function HomeView() {
         </section>
       ) : null}
 
-      <section className="mt-6 sm:mt-7">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="font-display text-lg font-bold tracking-[-0.025em] text-[#29463f] sm:text-xl">
-              {searching ? `Results for “${query.trim()}”` : 'Fresh on campus'}
-            </h2>
-            <p className="mt-1 text-xs text-[#95a19d]">{resultSummary}</p>
-          </div>
-          <button className="flex shrink-0 items-center gap-1 rounded-lg border border-[#e5eae7] px-2.5 py-2 text-xs font-semibold text-[#6e8079] sm:px-3"><Filter size={14} /> <span className="hidden sm:inline">Filters</span></button>
-        </div>
-        {loading ? (
-          <div className="rounded-2xl border border-dashed border-[#d9e5e0] bg-white p-8 text-center text-sm text-[#81908b]">Loading listings…</div>
-        ) : filtered.length ? (
-          <>
-            <div className="grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4">
-              {visible.map((item) => (
-                <ListingCard key={item.id} item={item} saved={saved.includes(item.id)} toggleSaved={toggleSaved} compact />
-              ))}
-            </div>
-            {filtered.length > PREVIEW_COUNT && !searching && (
-              <button
-                type="button"
-                onClick={() => setShowAll((open) => !open)}
-                className="mt-4 flex w-full items-center justify-center gap-1 rounded-xl border border-[#e5eae7] bg-white py-2.5 text-xs font-bold text-[#315e55] hover:border-[#b8d1c9] sm:mt-5"
-              >
-                {showAll ? 'Show fewer listings' : `See ${filtered.length - PREVIEW_COUNT} more listing${filtered.length - PREVIEW_COUNT === 1 ? '' : 's'}`}
-                <ChevronRight size={14} className={showAll ? 'rotate-[-90deg]' : 'rotate-90'} />
-              </button>
-            )}
-          </>
-        ) : (
+      {shopsSelected && !searching && !visibleShops.length ? (
+        <section className="mt-6 sm:mt-7">
           <div className="rounded-2xl border border-dashed border-[#d9e5e0] bg-white p-8 text-center text-sm text-[#81908b] sm:p-10">
-            {searching && matchedShops.length
-              ? 'No listings match this search yet. Check the matching shops above.'
-              : 'No listings match your search yet. Be the first to post.'}
+            No shops on campus yet. Be the first to open one.
           </div>
-        )}
-      </section>
+        </section>
+      ) : null}
       <section className="mt-8 grid gap-4 sm:mt-10 sm:gap-5 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="rounded-2xl border border-[#e5eae7] bg-white p-4 sm:p-6">
           <div className="mb-5 flex items-start justify-between gap-3">

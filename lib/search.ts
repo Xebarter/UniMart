@@ -1,6 +1,6 @@
 import { LISTING_CATEGORIES, type Listing, type ListingCategory, type Shop } from '@/lib/types'
 
-export type MarketCategory = 'All' | ListingCategory
+export type MarketCategory = 'All' | ListingCategory | 'Shops'
 
 export function listingSearchText(item: Listing) {
   return `${item.title} ${item.description} ${item.profiles?.display_name ?? ''} ${item.location} ${item.category}`.toLowerCase()
