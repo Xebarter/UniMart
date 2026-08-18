@@ -721,7 +721,7 @@ const privacySections: Section[] = [
       {
         title: 'Opt-out',
         paragraphs: [
-          'You can opt out of marketing communications where applicable.',
+          'You can unsubscribe from UniMart email updates at /unsubscribe, from Settings, or with the link we include when we send those emails.',
           'Service-related messages may still be necessary.',
         ],
       },

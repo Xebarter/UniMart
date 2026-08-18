@@ -4,6 +4,15 @@ import type {
   AdminStats,
   Article,
   AuditLog,
+  CareerPageSettings,
+  ContactChannel,
+  ContactInquiry,
+  ContactPageSettings,
+  ContactTopic,
+  PressPage,
+  NewsletterSubscriber,
+  JobApplication,
+  JobRole,
   Conversation,
   FollowedProfile,
   Listing,
@@ -54,6 +63,85 @@ export const api = {
     request<{ saved: boolean }>('/api/favorites', { method: 'DELETE', body: JSON.stringify({ listing_id }) }),
   articles: () => request<{ data: Article[] }>('/api/articles'),
   article: (slug: string) => request<{ data: Article }>(`/api/articles/${slug}`),
+  careers: () => request<{ data: JobRole[]; settings: CareerPageSettings }>('/api/careers'),
+  career: (slug: string) => request<{ data: JobRole; settings: CareerPageSettings }>(`/api/careers/${slug}`),
+  applyCareer: (body: Record<string, unknown>) =>
+    request<{ ok: boolean }>('/api/careers/apply', { method: 'POST', body: JSON.stringify(body) }),
+  contactPage: () =>
+    request<{ settings: ContactPageSettings; channels: ContactChannel[]; topics: ContactTopic[] }>('/api/contact'),
+  submitContact: (body: Record<string, unknown>) =>
+    request<{ ok: boolean }>('/api/contact', { method: 'POST', body: JSON.stringify(body) }),
+  adminContactPage: () =>
+    request<{ data: ContactPageSettings; channels: ContactChannel[]; topics: ContactTopic[] }>('/api/admin/contact-page'),
+  updateContactPage: (body: Record<string, unknown>) =>
+    request<{ data: ContactPageSettings }>('/api/admin/contact-page', { method: 'PATCH', body: JSON.stringify(body) }),
+  createContactChannel: (body: Record<string, unknown>) =>
+    request<{ data: ContactChannel }>('/api/admin/contact-channels', { method: 'POST', body: JSON.stringify(body) }),
+  updateContactChannel: (id: string, body: Record<string, unknown>) =>
+    request<{ data: ContactChannel }>(`/api/admin/contact-channels/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteContactChannel: (id: string) =>
+    request<{ ok: boolean }>(`/api/admin/contact-channels/${id}`, { method: 'DELETE' }),
+  createContactTopic: (body: Record<string, unknown>) =>
+    request<{ data: ContactTopic }>('/api/admin/contact-topics', { method: 'POST', body: JSON.stringify(body) }),
+  updateContactTopic: (id: string, body: Record<string, unknown>) =>
+    request<{ data: ContactTopic }>(`/api/admin/contact-topics/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteContactTopic: (id: string) =>
+    request<{ ok: boolean }>(`/api/admin/contact-topics/${id}`, { method: 'DELETE' }),
+  adminContactInquiries: (params?: string) =>
+    request<Paginated<ContactInquiry> & { counts: { new: number; reviewing: number; replied: number; closed: number } }>(
+      `/api/admin/contact-inquiries${params ? `?${params}` : ''}`,
+    ),
+  adminContactInquiry: (id: string) => request<{ data: ContactInquiry }>(`/api/admin/contact-inquiries/${id}`),
+  updateContactInquiry: (id: string, body: Record<string, unknown>) =>
+    request<{ data: ContactInquiry }>(`/api/admin/contact-inquiries/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  adminCareers: (params?: string) =>
+    request<Paginated<JobRole> & { counts: { draft: number; published: number; closed: number; archived: number }; applications: { new: number; total: number } }>(
+      `/api/admin/careers${params ? `?${params}` : ''}`,
+    ),
+  adminCareer: (id: string) => request<{ data: JobRole }>(`/api/admin/careers/${id}`),
+  createCareer: (body: Record<string, unknown>) =>
+    request<{ data: JobRole }>('/api/admin/careers', { method: 'POST', body: JSON.stringify(body) }),
+  updateCareer: (id: string, body: Record<string, unknown>) =>
+    request<{ data: JobRole }>(`/api/admin/careers/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  adminCareerPage: () => request<{ data: CareerPageSettings }>('/api/admin/career-page'),
+  updateCareerPage: (body: Record<string, unknown>) =>
+    request<{ data: CareerPageSettings }>('/api/admin/career-page', { method: 'PATCH', body: JSON.stringify(body) }),
+  press: () => request<{ data: PressPage }>('/api/press'),
+  adminPress: () => request<{ data: PressPage }>('/api/admin/press'),
+  updateAdminPress: (body: Record<string, unknown>) =>
+    request<{ data: PressPage }>('/api/admin/press', { method: 'PATCH', body: JSON.stringify(body) }),
+  subscribe: (body: Record<string, unknown>) =>
+    request<{ ok: boolean; status: string; already?: boolean; resumed?: boolean }>('/api/subscribe', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  newsletterMe: () =>
+    request<{ subscribed: boolean; status: string; email: string | null; available: boolean }>('/api/subscribe/me'),
+  updateNewsletterMe: (body: { subscribed: boolean }) =>
+    request<{ subscribed: boolean; status: string }>('/api/subscribe/me', { method: 'PATCH', body: JSON.stringify(body) }),
+  unsubscribePreview: (token: string) =>
+    request<{ status: string; email: string; subscribed: boolean }>(`/api/subscribe/unsubscribe?token=${encodeURIComponent(token)}`),
+  unsubscribe: (token: string) =>
+    request<{ ok: boolean; status: string }>('/api/subscribe/unsubscribe', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    }),
+  adminSubscribers: (params?: string) =>
+    request<Paginated<NewsletterSubscriber> & { counts: { subscribed: number; unsubscribed: number; pending: number } }>(
+      `/api/admin/subscribers${params ? `?${params}` : ''}`,
+    ),
+  adminSubscriber: (id: string) => request<{ data: NewsletterSubscriber; unsubscribe_url: string }>(`/api/admin/subscribers/${id}`),
+  updateAdminSubscriber: (id: string, body: Record<string, unknown>) =>
+    request<{ data: NewsletterSubscriber }>(`/api/admin/subscribers/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteAdminSubscriber: (id: string) =>
+    request<{ ok: boolean }>(`/api/admin/subscribers/${id}`, { method: 'DELETE' }),
+  adminJobApplications: (params?: string) =>
+    request<Paginated<JobApplication> & { counts: { new: number; reviewing: number; shortlisted: number; rejected: number; hired: number } }>(
+      `/api/admin/job-applications${params ? `?${params}` : ''}`,
+    ),
+  adminJobApplication: (id: string) => request<{ data: JobApplication }>(`/api/admin/job-applications/${id}`),
+  updateJobApplication: (id: string, body: Record<string, unknown>) =>
+    request<{ data: JobApplication }>(`/api/admin/job-applications/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   conversations: () => request<{ data: Conversation[] }>('/api/conversations'),
   startConversation: (body: { recipient_id: string; listing_id?: string }) =>
     request<{ data: Conversation }>('/api/conversations', { method: 'POST', body: JSON.stringify(body) }),

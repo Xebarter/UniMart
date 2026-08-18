@@ -45,6 +45,8 @@ const PERMISSIONS: { label: string; student: boolean; moderator: boolean; admin:
   { label: 'Resolve reports', student: false, moderator: true, admin: true },
   { label: 'Verify student accounts', student: false, moderator: true, admin: true },
   { label: 'Publish magazine articles', student: false, moderator: true, admin: true },
+  { label: 'Manage careers & applications', student: false, moderator: true, admin: true },
+  { label: 'Manage press page', student: false, moderator: true, admin: true },
   { label: 'View payments & analytics', student: false, moderator: true, admin: true },
   { label: 'Read message threads', student: false, moderator: true, admin: true },
   { label: 'Change operator roles', student: false, moderator: false, admin: true },
@@ -58,6 +60,8 @@ const MIGRATIONS = [
   { file: '008_listing-purchase.sql', label: 'Buyer checkout & sold listings', probe: 'manual' as const },
   { file: '009_admin-ops.sql', label: 'Audit logs, sanctions & shop status', probe: 'ops' as const },
   { file: '010_article-cover.sql', label: 'Article cover images', probe: 'manual' as const },
+  { file: '012_careers.sql', label: 'Careers roles & applications', probe: 'careers' as const },
+  { file: '014_press.sql', label: 'Press page CMS', probe: 'press' as const },
 ]
 
 const QUICK_LINKS = [
@@ -115,10 +119,12 @@ function PermissionCell({ allowed }: { allowed: boolean }) {
   )
 }
 
-function migrationApplied(snapshot: AdminSettingsSnapshot | null, probe: 'database' | 'ops' | 'manual') {
+function migrationApplied(snapshot: AdminSettingsSnapshot | null, probe: 'database' | 'ops' | 'careers' | 'press' | 'manual') {
   if (!snapshot) return false
   if (probe === 'database') return snapshot.database === 'ready'
   if (probe === 'ops') return snapshot.schema.ops_ready
+  if (probe === 'careers') return snapshot.schema.job_roles
+  if (probe === 'press') return snapshot.schema.press_pages
   return false
 }
 
@@ -300,6 +306,8 @@ export function SettingsView() {
                 <StatusRow label="Audit logs" detail="Append-only operator action history" ok={snapshot.schema.audit_logs} warn={!snapshot.schema.audit_logs && snapshot.database === 'ready'} />
                 <StatusRow label="Account sanctions" detail="Suspend & ban via account_status column" ok={snapshot.schema.account_status} warn={!snapshot.schema.account_status && snapshot.database === 'ready'} />
                 <StatusRow label="Shop moderation" detail="Disable storefronts via shops.status" ok={snapshot.schema.shop_status} warn={!snapshot.schema.shop_status && snapshot.database === 'ready'} />
+                <StatusRow label="Careers CMS" detail="Run scripts/012_careers.sql for roles and applications" ok={snapshot.schema.job_roles} warn={!snapshot.schema.job_roles && snapshot.database === 'ready'} />
+                <StatusRow label="Press CMS" detail="Run scripts/014_press.sql for the managed press page" ok={snapshot.schema.press_pages} warn={!snapshot.schema.press_pages && snapshot.database === 'ready'} />
               </>
             )}
           </CardContent>

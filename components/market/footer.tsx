@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Globe, Heart, Mail, MapPin, Shield } from 'lucide-react'
 import { BrandLogo } from '@/components/brand-logo'
+import { NewsletterForm } from '@/components/market/newsletter-form'
 import { marketPaths } from '@/lib/market-paths'
 
 const YEAR = new Date().getFullYear()
@@ -15,8 +16,8 @@ const MARKETPLACE = [
 
 const COMPANY = [
   { label: 'About UniMart', href: '/about' },
-  { label: 'Careers', href: '/careers' },
-  { label: 'Press & media', href: '/press' },
+  { label: 'Careers', href: marketPaths.careers },
+  { label: 'Press & media', href: marketPaths.press },
   { label: 'Contact us', href: '/contact' },
 ]
 
@@ -32,6 +33,7 @@ const LEGAL = [
   { label: 'Privacy policy', href: '/privacy' },
   { label: 'Cookie policy', href: '/cookies' },
   { label: 'Acceptable use', href: '/acceptable-use' },
+  { label: 'Unsubscribe', href: marketPaths.unsubscribe },
 ]
 
 function FooterCol({ title, links }: { title: string; links: { label: string; href: string }[] }) {
@@ -93,25 +95,7 @@ export function MarketFooter() {
             <p className="mt-2 text-sm leading-6 text-[#8fb5ab]">
               Get deals, new features, and seller tips delivered to your inbox.
             </p>
-            <form
-              onSubmit={(event) => event.preventDefault()}
-              className="mt-4 flex gap-2"
-            >
-              <div className="relative min-w-0 flex-1">
-                <Mail size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#6a8f85]" />
-                <input
-                  type="email"
-                  placeholder="you@email.com"
-                  className="h-11 w-full min-w-0 rounded-xl border border-white/10 bg-white/[0.06] pl-9 pr-3 text-sm text-white outline-none placeholder:text-[#5d847a] focus:border-[#4e786a] focus:ring-2 focus:ring-[#315e55]/50"
-                />
-              </div>
-              <button
-                type="submit"
-                className="shrink-0 rounded-xl bg-[#d1734b] px-5 text-xs font-bold text-white transition hover:bg-[#b9623e]"
-              >
-                Subscribe
-              </button>
-            </form>
+            <NewsletterForm />
           </div>
 
           <div className="text-right">

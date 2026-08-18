@@ -36,7 +36,7 @@ type Section = 'account' | 'campus' | 'notifications' | 'privacy' | 'security'
 const NAV: { id: Section; label: string; hint: string; icon: typeof UserRound }[] = [
   { id: 'account', label: 'Account', hint: 'Photo, name, and bio', icon: UserRound },
   { id: 'campus', label: 'Location', hint: 'University and area', icon: MapPin },
-  { id: 'notifications', label: 'Notifications', hint: 'Messages and alerts', icon: Bell },
+  { id: 'notifications', label: 'Notifications', hint: 'Email, messages, and alerts', icon: Bell },
   { id: 'privacy', label: 'Privacy', hint: 'How others see you', icon: Shield },
   { id: 'security', label: 'Security', hint: 'Password and sessions', icon: Lock },
 ]
@@ -148,6 +148,7 @@ export function SettingsView() {
           {section === 'campus' && <CampusSection profile={profile} setProfile={setProfile} notify={notify} />}
           {section === 'notifications' && (
             <NotificationsSection
+              email={email}
               notifications={notifications}
               unreadNotes={unreadNotes}
               preferences={notificationPreferences}
@@ -448,7 +449,67 @@ function Toggle({
   )
 }
 
+function NewsletterPreferenceCard({
+  email,
+  notify,
+}: {
+  email: string
+  notify: (message: string) => void
+}) {
+  const [subscribed, setSubscribed] = useState(false)
+  const [available, setAvailable] = useState(true)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    api.newsletterMe()
+      .then((result) => {
+        setSubscribed(result.subscribed)
+        setAvailable(result.available !== false)
+      })
+      .catch(() => setAvailable(false))
+      .finally(() => setLoading(false))
+  }, [])
+
+  async function toggle(next: boolean) {
+    setBusy(true)
+    try {
+      const result = await api.updateNewsletterMe({ subscribed: next })
+      setSubscribed(result.subscribed)
+      notify(result.subscribed ? 'Email updates enabled' : 'Email updates stopped')
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Unable to update email updates')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Card
+      eyebrow="Inbox"
+      title="Email updates"
+      description="Deals, new features, and seller tips sent to the email on your account."
+    >
+      {loading ? (
+        <p className="text-sm text-[#748780]">Loading preference…</p>
+      ) : !available ? (
+        <p className="text-sm leading-6 text-[#748780]">Email updates are not available on this server yet.</p>
+      ) : (
+        <div className="divide-y divide-[#eef3f0]">
+          <Toggle
+            checked={subscribed}
+            onChange={(value) => { if (!busy) void toggle(value) }}
+            label={busy ? 'Updating…' : 'Send UniMart email updates'}
+            hint={email ? `Delivered to ${email}. You can also unsubscribe from the footer.` : 'Your account email is used for this list.'}
+          />
+        </div>
+      )}
+    </Card>
+  )
+}
+
 function NotificationsSection({
+  email,
   notifications,
   unreadNotes,
   preferences,
@@ -456,6 +517,7 @@ function NotificationsSection({
   markAllRead,
   notify,
 }: {
+  email: string
   notifications: { id: string; title: string; body: string; created_at: string; read_at: string | null }[]
   unreadNotes: number
   preferences: {
@@ -508,6 +570,7 @@ function NotificationsSection({
 
   return (
     <div className="space-y-5">
+      <NewsletterPreferenceCard email={email} notify={notify} />
       <Card eyebrow="Delivery" title="Push notifications" description="Every notification is stored in `/messages`. Choose which ones are also allowed to reach your devices later.">
         <div className="mb-4 rounded-2xl border border-[#eef3f0] bg-[#f8fbf9] px-4 py-3 text-sm text-[#5f746c]">
           {pushSupported === false

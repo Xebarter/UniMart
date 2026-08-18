@@ -24,10 +24,12 @@ export async function GET() {
   const { error: dbProbeError } = await auth.supabase.from('profiles').select('id').limit(1)
   const database = dbProbeError ? 'uninitialized' : 'ready'
 
-  const [auditLogs, accountStatus, shopStatus] = await Promise.all([
+  const [auditLogs, accountStatus, shopStatus, jobRoles, pressPages] = await Promise.all([
     probeTable(auth.supabase, 'audit_logs'),
     probeColumn(auth.supabase, 'profiles', 'account_status'),
     probeColumn(auth.supabase, 'shops', 'status'),
+    probeTable(auth.supabase, 'job_roles'),
+    probeTable(auth.supabase, 'press_pages'),
   ])
 
   const { data: profile } = await auth.supabase
@@ -46,6 +48,8 @@ export async function GET() {
         audit_logs: auditLogs,
         account_status: accountStatus,
         shop_status: shopStatus,
+        job_roles: jobRoles,
+        press_pages: pressPages,
         ops_ready: auditLogs && accountStatus && shopStatus,
       },
       integrations: {

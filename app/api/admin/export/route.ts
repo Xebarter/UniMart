@@ -62,5 +62,13 @@ export async function GET(request: Request) {
     const { data } = await query.order('created_at', { ascending: false }).limit(limit)
     return csvResponse('unimart-analytics.csv', (data ?? []) as Record<string, unknown>[])
   }
-  return jsonError('Choose type=users, listings, payments, reports, or analytics.')
+  if (type === 'subscribers') {
+    let query = auth.supabase.from('newsletter_subscribers').select('id, email, status, source, confirmed_at, unsubscribed_at, created_at')
+    const status = searchParams.get('status')
+    if (status && status !== 'all') query = query.eq('status', status)
+    if (q) query = query.or(ilikeOr(['email', 'notes', 'source'], q))
+    const { data } = await query.order('created_at', { ascending: false }).limit(limit)
+    return csvResponse('unimart-subscribers.csv', (data ?? []) as Record<string, unknown>[])
+  }
+  return jsonError('Choose type=users, listings, payments, reports, analytics, or subscribers.')
 }

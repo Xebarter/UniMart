@@ -26,7 +26,9 @@ const navSections: { label: string; items: typeof adminNav }[] = [
   },
   {
     label: 'Content',
-    items: adminNav.filter((item) => item.href === adminPaths.articles),
+    items: adminNav.filter((item) =>
+      ['/admin/articles', '/admin/careers', '/admin/contact', '/admin/press', '/admin/subscribers'].includes(item.href),
+    ),
   },
   {
     label: 'Insights',

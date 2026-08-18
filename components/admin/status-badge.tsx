@@ -24,6 +24,14 @@ const MAP: Record<string, { label: string; variant: 'default' | 'success' | 'war
   unverified: { label: 'Unverified', variant: 'outline' },
   suspended: { label: 'Suspended', variant: 'warning' },
   banned: { label: 'Banned', variant: 'danger' },
+  closed: { label: 'Closed', variant: 'danger' },
+  new: { label: 'New', variant: 'warning' },
+  shortlisted: { label: 'Shortlisted', variant: 'success' },
+  rejected: { label: 'Rejected', variant: 'danger' },
+  hired: { label: 'Hired', variant: 'success' },
+  replied: { label: 'Replied', variant: 'success' },
+  subscribed: { label: 'Subscribed', variant: 'success' },
+  unsubscribed: { label: 'Unsubscribed', variant: 'muted' },
 }
 
 export function StatusBadge({ value }: { value?: string | null }) {

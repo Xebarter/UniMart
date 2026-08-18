@@ -15,6 +15,11 @@ export const marketPaths = {
   conversation: (id: string) => `/messages/${id}`,
   messageAlerts: '/messages?tab=alerts',
   listing: (id: string) => `/listings/${id}`,
+  careers: '/careers',
+  career: (slug: string) => `/careers/${slug}`,
+  contact: '/contact',
+  press: '/press',
+  unsubscribe: '/unsubscribe',
 } as const
 
 export type MarketView = 'home' | 'explore' | 'post' | 'profile' | 'settings' | 'messages' | 'listing' | 'shop' | 'saved'

@@ -92,6 +92,185 @@ export type Article = {
   created_at: string
 }
 
+export const JOB_EMPLOYMENT_TYPES = ['full_time', 'part_time', 'contract', 'internship'] as const
+export type JobEmploymentType = (typeof JOB_EMPLOYMENT_TYPES)[number]
+
+export const JOB_WORKPLACES = ['onsite', 'remote', 'hybrid'] as const
+export type JobWorkplace = (typeof JOB_WORKPLACES)[number]
+
+export const JOB_STATUSES = ['draft', 'published', 'closed', 'archived'] as const
+export type JobStatus = (typeof JOB_STATUSES)[number]
+
+export const JOB_APPLICATION_STATUSES = ['new', 'reviewing', 'shortlisted', 'rejected', 'hired'] as const
+export type JobApplicationStatus = (typeof JOB_APPLICATION_STATUSES)[number]
+
+export const JOB_DEPARTMENTS = [
+  'Engineering',
+  'Product',
+  'Design',
+  'Operations',
+  'Trust & safety',
+  'Marketing',
+  'General',
+] as const
+
+export type JobRole = {
+  id: string
+  created_by: string | null
+  title: string
+  slug: string
+  department: string
+  location: string
+  employment_type: JobEmploymentType
+  workplace: JobWorkplace
+  excerpt: string
+  description: string
+  requirements: string
+  benefits: string
+  apply_email: string | null
+  apply_url: string | null
+  featured: boolean
+  sort_order: number
+  status: JobStatus
+  published_at: string | null
+  closes_at: string | null
+  created_at: string
+  updated_at?: string
+}
+
+export type CareerPageSettings = {
+  id: number
+  headline: string
+  intro: string
+  apply_email: string
+  accept_general: boolean
+  updated_at?: string
+}
+
+export const CONTACT_CHANNEL_ICONS = ['mail', 'message', 'map', 'phone', 'globe', 'shield', 'newspaper'] as const
+export type ContactChannelIcon = (typeof CONTACT_CHANNEL_ICONS)[number]
+
+export const CONTACT_INQUIRY_STATUSES = ['new', 'reviewing', 'replied', 'closed'] as const
+export type ContactInquiryStatus = (typeof CONTACT_INQUIRY_STATUSES)[number]
+
+export type ContactPageSettings = {
+  id: number
+  headline: string
+  intro: string
+  response_note: string
+  office_label: string
+  office_address: string
+  hours: string
+  accept_inquiries: boolean
+  updated_at?: string
+}
+
+export type ContactChannel = {
+  id: string
+  title: string
+  description: string
+  value: string
+  href: string
+  icon: ContactChannelIcon | string
+  sort_order: number
+  published: boolean
+  created_at: string
+  updated_at?: string
+}
+
+export type ContactTopic = {
+  id: string
+  label: string
+  description: string
+  sort_order: number
+  published: boolean
+  created_at: string
+  updated_at?: string
+}
+
+export type ContactInquiry = {
+  id: string
+  topic_id: string | null
+  name: string
+  email: string
+  phone: string
+  subject: string
+  message: string
+  status: ContactInquiryStatus
+  notes: string
+  created_at: string
+  updated_at?: string
+  contact_topics?: Pick<ContactTopic, 'id' | 'label'> | null
+}
+
+export type PressHighlight = {
+  title: string
+  body: string
+}
+
+export type PressFaq = {
+  question: string
+  answer: string
+}
+
+export type PressPage = {
+  id: number
+  eyebrow: string
+  hero_title: string
+  hero_subtitle: string
+  contact_email: string
+  contact_copy: string
+  contact_sla: string
+  boilerplate_title: string
+  boilerplate: string
+  highlights: PressHighlight[]
+  quote_text: string
+  quote_attribution: string
+  quote_role: string
+  faqs: PressFaq[]
+  media_notes: string
+  updated_at?: string
+}
+
+export const NEWSLETTER_STATUSES = ['pending', 'subscribed', 'unsubscribed'] as const
+export type NewsletterStatus = (typeof NEWSLETTER_STATUSES)[number]
+
+export const NEWSLETTER_SOURCES = ['footer', 'settings', 'admin'] as const
+export type NewsletterSource = (typeof NEWSLETTER_SOURCES)[number]
+
+export type NewsletterSubscriber = {
+  id: string
+  email: string
+  status: NewsletterStatus
+  source: NewsletterSource | string
+  user_id: string | null
+  confirm_token?: string | null
+  unsubscribe_token?: string | null
+  confirmed_at: string | null
+  unsubscribed_at: string | null
+  notes: string
+  created_at: string
+  updated_at?: string
+}
+
+export type JobApplication = {
+  id: string
+  role_id: string | null
+  name: string
+  email: string
+  phone: string
+  location: string
+  portfolio_url: string
+  linkedin_url: string
+  resume_url: string
+  cover_letter: string
+  status: JobApplicationStatus
+  notes: string
+  created_at: string
+  updated_at?: string
+  job_roles?: Pick<JobRole, 'id' | 'title' | 'slug' | 'department' | 'status'> | null
+}
+
 export type Conversation = {
   id: string
   listing_id: string | null
@@ -226,6 +405,8 @@ export type AdminSettingsSnapshot = {
     audit_logs: boolean
     account_status: boolean
     shop_status: boolean
+    job_roles: boolean
+    press_pages: boolean
     ops_ready: boolean
   }
   integrations: {
