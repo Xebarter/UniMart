@@ -84,6 +84,7 @@ export type Article = {
   excerpt: string
   body: string
   type: string
+  cover_url?: string | null
   cover_color: string
   accent_color: string
   status: 'draft' | 'published' | 'archived'

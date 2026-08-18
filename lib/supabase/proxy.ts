@@ -13,7 +13,7 @@ function skipSessionRefresh(request: NextRequest) {
     return true
   }
   if (request.method !== 'GET') return false
-  if (path === '/api/articles') return true
+  if (path === '/api/articles' || /^\/api\/articles\/[^/]+$/.test(path)) return true
   if (/^\/api\/listings\/[^/]+$/.test(path)) return true
   if (path === '/api/listings') {
     const mine = request.nextUrl.searchParams.get('mine') === '1'

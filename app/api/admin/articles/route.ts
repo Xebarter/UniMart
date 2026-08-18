@@ -1,6 +1,7 @@
 import { writeAudit } from '@/lib/admin/audit'
 import { ilikeOr, parseListQuery } from '@/lib/admin/query'
 import { dbError, jsonError, jsonOk, parseJson, requireAdmin } from '@/lib/api/http'
+import { sanitizeArticleHtml } from '@/lib/article'
 
 function slugify(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80)
@@ -29,21 +30,26 @@ export async function POST(request: Request) {
   const title = typeof body.title === 'string' ? body.title.trim() : ''
   const slug = typeof body.slug === 'string' && body.slug.trim() ? slugify(body.slug) : slugify(title)
   if (!title || !slug) return jsonError('Title and slug are required.')
-  const { data, error } = await auth.supabase
-    .from('articles')
-    .insert({
-      author_id: auth.user.id,
-      title,
-      slug,
-      excerpt: String(body.excerpt ?? '').trim(),
-      body: String(body.body ?? ''),
-      type: typeof body.type === 'string' ? body.type : 'Community',
-      cover_color: typeof body.cover_color === 'string' ? body.cover_color : '#e4dbee',
-      accent_color: typeof body.accent_color === 'string' ? body.accent_color : '#745a8e',
-      status: 'draft',
-    })
-    .select()
-    .single()
+  const row = {
+    author_id: auth.user.id,
+    title,
+    slug,
+    excerpt: String(body.excerpt ?? '').trim(),
+    body: sanitizeArticleHtml(String(body.body ?? '')),
+    type: typeof body.type === 'string' ? body.type : 'Community',
+    cover_url: typeof body.cover_url === 'string' ? body.cover_url.trim() || null : null,
+    cover_color: typeof body.cover_color === 'string' ? body.cover_color : '#e4dbee',
+    accent_color: typeof body.accent_color === 'string' ? body.accent_color : '#745a8e',
+    status: typeof body.status === 'string' && ['draft', 'published', 'archived'].includes(body.status) ? body.status : 'draft',
+    published_at: body.status === 'published' ? new Date().toISOString() : null,
+  }
+  let { data, error } = await auth.supabase.from('articles').insert(row).select().single()
+  if (error && /cover_url/i.test(error.message ?? '')) {
+    const { cover_url: _cover, ...legacy } = row
+    const retry = await auth.supabase.from('articles').insert(legacy).select().single()
+    data = retry.data
+    error = retry.error
+  }
   if (error) return dbError(error, 'Unable to create article.', 400)
   await writeAudit(auth.supabase, { actorId: auth.user.id, action: 'article.create', entityType: 'article', entityId: data.id })
   return jsonOk({ data }, 201)

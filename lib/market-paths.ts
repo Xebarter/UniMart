@@ -1,6 +1,7 @@
 export const marketPaths = {
   home: '/',
   explore: '/explore',
+  article: (slug: string) => `/explore/${slug}`,
   post: '/post',
   postNew: '/post/new',
   postEdit: (id: string) => `/post/${id}`,

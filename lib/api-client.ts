@@ -127,4 +127,14 @@ export const api = {
     if (!response.ok) throw new Error(payload.error || 'Unable to upload cover.')
     return payload
   },
+  uploadArticleCover: async (file: File, onProgress?: (percent: number) => void) => {
+    const form = new FormData()
+    form.set('kind', 'article-cover')
+    form.set('file', file)
+    const { uploadFormWithProgress } = await import('@/lib/upload-with-progress')
+    const payload = await uploadFormWithProgress('/api/media', form, onProgress)
+    const url = typeof payload.url === 'string' ? payload.url : ''
+    if (!url) throw new Error('Unable to upload article image.')
+    return { url }
+  },
 }

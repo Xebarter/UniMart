@@ -125,6 +125,7 @@ export function timeAgo(value: string) {
 }
 
 export function readTime(body: string) {
-  const minutes = Math.max(1, Math.round(body.split(/\s+/).length / 180))
+  const text = body.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+  const minutes = Math.max(1, Math.round((text.split(/\s+/).filter(Boolean).length || 1) / 180))
   return `${minutes} min read`
 }

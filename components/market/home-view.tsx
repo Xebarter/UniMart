@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ArrowUpRight, BookOpen, ChevronRight, Filter, Store, TrendingUp } from 'lucide-react'
+import { ArrowUpRight, ChevronRight, Filter, Store, TrendingUp } from 'lucide-react'
+import { ArticleCover } from '@/components/market/article-cover'
 import { ListingCard } from '@/components/market/listing-card'
 import { ShopCard } from '@/components/market/shop-card'
 import { useMarket } from '@/components/market/provider'
@@ -218,11 +219,8 @@ export function HomeView() {
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             {articles.slice(0, 3).map((article) => (
-              <Link href={marketPaths.explore} key={article.id} className="min-w-0 text-left">
-                <div className="mb-3 h-20 rounded-xl p-3" style={{ background: article.cover_color, color: article.accent_color }}>
-                  <BookOpen size={18} />
-                  <span className="mt-3 block text-[10px] font-bold uppercase tracking-wider">{article.type}</span>
-                </div>
+              <Link href={marketPaths.article(article.slug)} key={article.id} className="min-w-0 text-left">
+                <ArticleCover article={article} showType className="mb-3 h-24 rounded-xl" />
                 <h3 className="text-xs font-bold leading-5 text-[#3d5650]">{article.title}</h3>
                 <p className="mt-1 text-[10px] text-[#9aa7a2]">{readTime(article.body)}</p>
               </Link>

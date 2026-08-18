@@ -57,6 +57,7 @@ const MIGRATIONS = [
   { file: '002_admin-roles.sql', label: 'Admin roles & RPC', probe: 'database' as const },
   { file: '008_listing-purchase.sql', label: 'Buyer checkout & sold listings', probe: 'manual' as const },
   { file: '009_admin-ops.sql', label: 'Audit logs, sanctions & shop status', probe: 'ops' as const },
+  { file: '010_article-cover.sql', label: 'Article cover images', probe: 'manual' as const },
 ]
 
 const QUICK_LINKS = [

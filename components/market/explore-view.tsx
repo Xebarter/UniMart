@@ -1,8 +1,12 @@
 'use client'
 
-import { BookOpen, PenLine } from 'lucide-react'
+import Link from 'next/link'
+import { PenLine } from 'lucide-react'
+import { ArticleCover } from '@/components/market/article-cover'
 import { useMarket } from '@/components/market/provider'
+import { stripHtml } from '@/lib/article'
 import { readTime } from '@/lib/format'
+import { marketPaths } from '@/lib/market-paths'
 
 export function ExploreView() {
   const { articles, requestPost } = useMarket()
@@ -15,16 +19,22 @@ export function ExploreView() {
       </div>
       <div className="mt-8 grid gap-5 md:grid-cols-2">
         {articles.map((article, index) => (
-          <article key={article.id} className={`group overflow-hidden rounded-2xl border border-[#e5eae7] bg-white text-left ${index === 0 ? 'md:col-span-2 md:flex' : ''}`}>
-            <div className={`flex items-end p-6 ${index === 0 ? 'h-56 md:h-auto md:w-1/2' : 'h-44'}`} style={{ background: article.cover_color, color: article.accent_color }}>
-              <div><BookOpen size={22} /><p className="mt-10 text-[11px] font-bold uppercase tracking-[0.16em]">{article.type}</p></div>
-            </div>
+          <Link
+            key={article.id}
+            href={marketPaths.article(article.slug)}
+            className={`group overflow-hidden rounded-2xl border border-[#e5eae7] bg-white text-left ${index === 0 ? 'md:col-span-2 md:flex' : ''}`}
+          >
+            <ArticleCover
+              article={article}
+              showType
+              className={index === 0 ? 'h-56 md:h-auto md:min-h-[280px] md:w-1/2' : 'h-44'}
+            />
             <div className="p-6">
               <p className="text-[10px] font-bold uppercase tracking-widest text-[#a0aaa6]">{readTime(article.body)}</p>
               <h2 className="mt-3 max-w-md font-display text-2xl font-bold leading-tight tracking-[-0.035em] text-[#29463f]">{article.title}</h2>
-              <p className="mt-3 text-sm leading-6 text-[#81908b]">{article.excerpt || article.body}</p>
+              <p className="mt-3 line-clamp-3 text-sm leading-6 text-[#81908b]">{article.excerpt || stripHtml(article.body)}</p>
             </div>
-          </article>
+          </Link>
         ))}
       </div>
       <div className="mt-7 rounded-2xl bg-[#e8f0ed] p-6 sm:p-8">

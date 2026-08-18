@@ -1,9 +1,9 @@
 'use client'
 
 import Link from 'next/link'
+import { useState } from 'react'
 import {
   Archive,
-  BookOpen,
   ChevronLeft,
   ChevronRight,
   CircleCheck,
@@ -11,15 +11,19 @@ import {
   FilePenLine,
   Newspaper,
   PenLine,
+  Upload,
 } from 'lucide-react'
 import { AdminButton, FilterBar, FilterSelect } from '@/components/admin/filter-bar'
+import { ArticlePublishOverlay } from '@/components/admin/article-publish-overlay'
 import { EmptyState } from '@/components/admin/empty-state'
 import { InsightTile } from '@/components/admin/insight-tile'
 import { PageHeader } from '@/components/admin/page-header'
 import { StatusBadge } from '@/components/admin/status-badge'
 import { useListParams } from '@/components/admin/use-list-params'
 import { useAdminResource } from '@/components/admin/use-resource'
+import { ArticleCover } from '@/components/market/article-cover'
 import { Skeleton } from '@/components/ui/skeleton'
+import { quickArchiveArticle, quickPublishArticle } from '@/lib/admin/article-save'
 import { adminPaths } from '@/lib/admin/paths'
 import { api } from '@/lib/api-client'
 import { formatDate, readTime, timeAgo } from '@/lib/format'
@@ -33,21 +37,19 @@ const STATUS_OPTIONS = [
   { value: 'archived', label: 'Archived' },
 ]
 
-function ArticleCover({ article }: { article: Article }) {
+function ArticleThumb({ article }: { article: Article }) {
   return (
-    <div
-      className="flex size-12 shrink-0 items-end overflow-hidden rounded-[14px] border border-[#e5eae7] p-2 shadow-[0_4px_12px_rgba(36,62,57,0.06)]"
-      style={{ background: article.cover_color, color: article.accent_color }}
-    >
-      <BookOpen size={14} strokeWidth={2.25} />
-    </div>
+    <ArticleCover
+      article={article}
+      className="size-12 shrink-0 rounded-[14px] border border-[#e5eae7] shadow-[0_4px_12px_rgba(36,62,57,0.06)]"
+    />
   )
 }
 
 function ArticleCell({ article }: { article: Article }) {
   return (
     <div className="flex min-w-0 items-center gap-3">
-      <ArticleCover article={article} />
+      <ArticleThumb article={article} />
       <div className="min-w-0">
         <span className="block truncate font-display text-sm font-bold text-[#243e39]">{article.title}</span>
         <p className="mt-0.5 truncate text-[11px] text-[#8b9994]">/{article.slug}</p>
@@ -73,7 +75,7 @@ function TypePill({ article }: { article: Article }) {
 export function ArticlesListView() {
   const { page, pageSize, q, get, setParams, queryString } = useListParams()
   const status = get('status', 'all')
-  const { data, error, loading } = useAdminResource(() => api.adminArticles(queryString), [queryString])
+  const { data, error, loading, reload } = useAdminResource(() => api.adminArticles(queryString), [queryString])
   const result = data as Paginated<Article> | null
   const rows = result?.data ?? []
   const total = result?.total ?? 0
@@ -82,6 +84,81 @@ export function ArticlesListView() {
   const to = Math.min(total, page * pageSize)
   const filtered = Boolean(q || status !== 'all')
   const insight = filtered ? 'Matching filters' : 'Campus magazine library'
+  const [actionBusyId, setActionBusyId] = useState<string | null>(null)
+  const [overlay, setOverlay] = useState({ open: false, title: '', stage: '', progress: 0, error: '' })
+
+  async function runQuickAction(article: Article, action: 'publish' | 'archive') {
+    setActionBusyId(article.id)
+    setOverlay({
+      open: true,
+      title: action === 'publish' ? 'Publishing article' : 'Archiving article',
+      stage: 'Starting…',
+      progress: 0,
+      error: '',
+    })
+    try {
+      const onProgress = (progress: number, stage: string) => {
+        setOverlay((current) => ({ ...current, progress, stage, error: '' }))
+      }
+      if (action === 'publish') await quickPublishArticle(article.id, onProgress)
+      else await quickArchiveArticle(article.id, onProgress)
+      await reload()
+      window.setTimeout(() => setOverlay((current) => ({ ...current, open: false })), 800)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unable to update article.'
+      setOverlay((current) => ({ ...current, error: message, stage: 'Something went wrong' }))
+    } finally {
+      setActionBusyId(null)
+    }
+  }
+
+  function RowActions({ article }: { article: Article }) {
+    const busy = actionBusyId === article.id
+    return (
+      <div className="flex items-center justify-end gap-1">
+        {article.status === 'draft' ? (
+          <button
+            type="button"
+            disabled={busy || Boolean(actionBusyId)}
+            onClick={() => void runQuickAction(article, 'publish')}
+            className="flex size-8 items-center justify-center rounded-full text-[#c3d0cb] transition hover:bg-[#eef5f2] hover:text-[#315e55] disabled:opacity-40"
+            aria-label={`Publish ${article.title}`}
+          >
+            <Upload size={14} />
+          </button>
+        ) : null}
+        {article.status === 'published' ? (
+          <Link
+            href={marketPaths.article(article.slug)}
+            target="_blank"
+            rel="noreferrer"
+            className="flex size-8 items-center justify-center rounded-full text-[#c3d0cb] transition hover:bg-[#eef5f2] hover:text-[#315e55]"
+            aria-label={`View ${article.title} on Explore`}
+          >
+            <ExternalLink size={14} />
+          </Link>
+        ) : null}
+        {article.status === 'published' ? (
+          <button
+            type="button"
+            disabled={busy || Boolean(actionBusyId)}
+            onClick={() => void runQuickAction(article, 'archive')}
+            className="flex size-8 items-center justify-center rounded-full text-[#c3d0cb] transition hover:bg-[#fff5f0] hover:text-[#c86c48] disabled:opacity-40"
+            aria-label={`Archive ${article.title}`}
+          >
+            <Archive size={14} />
+          </button>
+        ) : null}
+        <Link
+          href={adminPaths.article(article.id)}
+          className="flex size-8 items-center justify-center rounded-full text-[#c3d0cb] transition hover:bg-[#eef5f2] hover:text-[#315e55]"
+          aria-label={`Edit ${article.title}`}
+        >
+          <ChevronRight size={16} />
+        </Link>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -174,13 +251,16 @@ export function ArticlesListView() {
               </div>
             ))
           ) : rows.map((article) => (
-            <Link key={article.id} href={adminPaths.article(article.id)} className="flex items-center gap-3 px-4 py-3.5 transition hover:bg-[#f8fbf9]">
-              <ArticleCell article={article} />
-              <div className="ml-auto flex shrink-0 flex-col items-end gap-1.5">
-                <StatusBadge value={article.status} />
-                <span className="text-[10px] text-[#8b9994]">{readTime(article.body)}</span>
-              </div>
-            </Link>
+            <div key={article.id} className="flex items-center gap-3 px-4 py-3.5 transition hover:bg-[#f8fbf9]">
+              <Link href={adminPaths.article(article.id)} className="flex min-w-0 flex-1 items-center gap-3">
+                <ArticleCell article={article} />
+                <div className="ml-auto flex shrink-0 flex-col items-end gap-1.5">
+                  <StatusBadge value={article.status} />
+                  <span className="text-[10px] text-[#8b9994]">{readTime(article.body)}</span>
+                </div>
+              </Link>
+              <RowActions article={article} />
+            </div>
           ))}
         </div>
 
@@ -238,27 +318,7 @@ export function ArticlesListView() {
                     </Link>
                   </td>
                   <td className="px-5 py-3.5">
-                    <div className="flex items-center justify-end gap-1">
-                      {article.status === 'published' ? (
-                        <Link
-                          href={marketPaths.explore}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex size-8 items-center justify-center rounded-full text-[#c3d0cb] transition hover:bg-[#eef5f2] hover:text-[#315e55]"
-                          aria-label={`View ${article.title} on Explore`}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <ExternalLink size={14} />
-                        </Link>
-                      ) : null}
-                      <Link
-                        href={adminPaths.article(article.id)}
-                        className="flex size-8 items-center justify-center rounded-full text-[#c3d0cb] transition group-hover:bg-[#eef5f2] group-hover:text-[#315e55]"
-                        aria-label={`Edit ${article.title}`}
-                      >
-                        <ChevronRight size={16} />
-                      </Link>
-                    </div>
+                    <RowActions article={article} />
                   </td>
                 </tr>
               ))}
@@ -298,6 +358,15 @@ export function ArticlesListView() {
           </div>
         </div>
       </div>
+
+      <ArticlePublishOverlay
+        open={overlay.open}
+        title={overlay.title}
+        stage={overlay.stage}
+        progress={overlay.progress}
+        error={overlay.error || undefined}
+        onClose={() => setOverlay((current) => ({ ...current, open: false, error: '' }))}
+      />
     </div>
   )
 }

@@ -7,6 +7,7 @@ import { X } from 'lucide-react'
 import { AuthPrompt } from '@/components/auth-prompt'
 import { RestrictedAccount } from '@/components/admin/restricted-account'
 import { AppSidebar, navItems } from '@/components/market/sidebar'
+import { MobileTabSwipe } from '@/components/market/mobile-tab-swipe'
 import { TopBar } from '@/components/market/top-bar'
 import { useMarket } from '@/components/market/provider'
 import { viewFromPath } from '@/lib/market-paths'
@@ -32,18 +33,24 @@ export function MarketShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-[#fbfcfb] text-[#29463f]">
       <div className="flex min-h-screen">
         <AppSidebar />
-        <div className="min-w-0 flex-1">
-          <TopBar onOpenMenu={() => setMenuOpen(true)} />
-          {setupNeeded && (
-            <div className="mx-auto max-w-[1180px] px-4 pt-4 sm:px-8 lg:px-10">
-              <div className="rounded-2xl border border-[#f0c7b3] bg-[#fff5f0] px-4 py-3 text-sm text-[#9a4f32]">
-                The database still needs its schema. Open the Supabase SQL editor and run <code className="font-bold">scripts/001_schema.sql</code>, then refresh this page.
+        <div className="flex min-w-0 flex-1 flex-col">
+          <MobileTabSwipe disabled={menuOpen || authOpen}>
+            <TopBar onOpenMenu={() => setMenuOpen(true)} />
+            {setupNeeded && (
+              <div className="mx-auto max-w-[1180px] px-4 pt-4 sm:px-8 lg:px-10">
+                <div className="rounded-2xl border border-[#f0c7b3] bg-[#fff5f0] px-4 py-3 text-sm text-[#9a4f32]">
+                  The database still needs its schema. Open the Supabase SQL editor and run <code className="font-bold">scripts/001_schema.sql</code>, then refresh this page.
+                </div>
               </div>
-            </div>
-          )}
-          {profile?.account_status === 'suspended' || profile?.account_status === 'banned' ? (
-            <RestrictedAccount status={profile.account_status} />
-          ) : children}
+            )}
+            {profile?.account_status === 'suspended' || profile?.account_status === 'banned' ? (
+              <RestrictedAccount status={profile.account_status} />
+            ) : (
+              <div className="pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
+                {children}
+              </div>
+            )}
+          </MobileTabSwipe>
         </div>
       </div>
 
@@ -59,24 +66,30 @@ export function MarketShell({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-around border-t border-[#e5eae7] bg-white/95 px-1 pt-1.5 backdrop-blur-md lg:hidden" style={{ paddingBottom: 'max(10px, env(safe-area-inset-bottom, 0px))' }}>
-        {navItems.map(({ id, href, label, icon: Icon, intent }) => (
-          intent && !profile ? (
-            <button key={id} type="button" onClick={requestPost} className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 font-inherit text-[10px] font-bold ${view === id ? 'text-[#315e55]' : 'text-[#9aa7a2]'}`}>
-              <span className={`flex size-8 items-center justify-center rounded-xl ${view === id ? 'bg-[#e7f0ed]' : ''}`}>
-                <Icon size={18} strokeWidth={1.9} />
-              </span>
-              {label}
-            </button>
-          ) : (
-            <Link key={id} href={href} className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 text-[10px] font-bold ${view === id ? 'text-[#315e55]' : 'text-[#9aa7a2]'}`}>
-              <span className={`flex size-8 items-center justify-center rounded-xl ${view === id ? 'bg-[#e7f0ed]' : ''}`}>
-                <Icon size={18} strokeWidth={1.9} />
-              </span>
-              {label}
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-around border-t border-[#e5eae7] bg-white/95 px-1 pt-1.5 font-sans backdrop-blur-md lg:hidden" style={{ paddingBottom: 'max(10px, env(safe-area-inset-bottom, 0px))' }}>
+        {navItems.map(({ id, href, label, icon: Icon, intent }) => {
+          const active = view === id
+          const className = `flex min-w-0 flex-1 appearance-none flex-col items-center gap-0.5 bg-transparent font-sans text-[10px] font-bold leading-none ${active ? 'text-[#315e55]' : 'text-[#9aa7a2]'}`
+          const icon = (
+            <span className={`flex size-8 items-center justify-center rounded-xl ${active ? 'bg-[#e7f0ed]' : ''}`}>
+              <Icon size={18} strokeWidth={1.9} />
+            </span>
+          )
+          if (intent && !profile) {
+            return (
+              <button key={id} type="button" onClick={requestPost} className={className}>
+                {icon}
+                <span className="font-sans text-[10px] font-bold leading-none">{label}</span>
+              </button>
+            )
+          }
+          return (
+            <Link key={id} href={href} className={className}>
+              {icon}
+              <span className="font-sans text-[10px] font-bold leading-none">{label}</span>
             </Link>
           )
-        ))}
+        })}
       </nav>
 
       {toast && <div className="fixed bottom-24 left-1/2 z-40 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-xl bg-[#29463f] px-4 py-3 text-xs font-semibold text-white shadow-xl lg:bottom-6">{toast}</div>}

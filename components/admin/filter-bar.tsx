@@ -61,22 +61,24 @@ export function AdminButton({
   href,
   onClick,
   variant = 'secondary',
+  disabled = false,
 }: {
   children: ReactNode
   href?: string
   onClick?: () => void
   variant?: 'primary' | 'secondary'
+  disabled?: boolean
 }) {
-  const className = variant === 'primary'
+  const className = `${variant === 'primary'
     ? 'inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#315e55] px-4 text-xs font-bold text-white transition hover:bg-[#294f48]'
-    : 'inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[#dfe7e3] bg-white px-4 text-xs font-bold text-[#638076] shadow-[0_1px_2px_rgba(36,62,57,0.03)] transition hover:border-[#c8dbd4] hover:bg-[#f7fbf9]'
+    : 'inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[#dfe7e3] bg-white px-4 text-xs font-bold text-[#638076] shadow-[0_1px_2px_rgba(36,62,57,0.03)] transition hover:border-[#c8dbd4] hover:bg-[#f7fbf9]'} disabled:cursor-not-allowed disabled:opacity-60`
 
   if (href) {
-    return <a href={href} className={className}>{children}</a>
+    return <a href={href} className={className} aria-disabled={disabled}>{children}</a>
   }
 
   return (
-    <button type="button" onClick={onClick} className={className}>
+    <button type="button" onClick={onClick} disabled={disabled} className={className}>
       {children}
     </button>
   )
