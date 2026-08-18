@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { GraduationCap, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { useMarket } from '@/components/market/provider'
 import { api } from '@/lib/api-client'
 import {
@@ -12,16 +12,14 @@ import {
 } from '@/lib/student-number'
 
 const FIELD =
-  'mt-1.5 h-12 w-full rounded-xl border border-[#e4e9e6] bg-[#fbfcfb] px-3.5 text-base outline-none transition focus:border-[#7fa59a] focus:ring-2 focus:ring-[#dcebe6] sm:text-sm'
+  'h-12 w-full rounded-xl border border-[#e4e9e6] bg-[#fbfcfb] px-3.5 text-base outline-none transition focus:border-[#7fa59a] focus:ring-2 focus:ring-[#dcebe6] sm:text-sm'
 
 export function StudentNumberGate({
   open,
-  context = 'listing',
   onClose,
   onSaved,
 }: {
   open: boolean
-  context?: 'listing' | 'shop'
   onClose: () => void
   onSaved?: () => void
 }) {
@@ -58,18 +56,6 @@ export function StudentNumberGate({
   }, [open, profile?.student_number])
 
   if (!open || !mounted || !profile) return null
-
-  const copy = context === 'shop'
-    ? {
-        title: 'Confirm you are a student',
-        body: 'Shops on UniMart are for university students. Enter your student number once — we save it to your profile.',
-        hint: 'Use the number on your student ID.',
-      }
-    : {
-        title: 'Confirm you are a student',
-        body: 'Products, services, and rentals are for university students. Enter your student number once — we save it to your profile.',
-        hint: 'Gigs stay open to everyone. Close this and choose Gig if that is what you are posting.',
-      }
 
   async function save() {
     if (!profile) return
@@ -111,7 +97,7 @@ export function StudentNumberGate({
         role="dialog"
         aria-modal="true"
         aria-labelledby="student-number-title"
-        className="auth-sheet relative w-full overflow-x-clip overflow-y-auto rounded-t-[28px] bg-white shadow-[0_-18px_80px_rgba(12,28,25,0.28)] sm:max-w-[420px] sm:rounded-[28px] sm:shadow-[0_28px_80px_rgba(12,28,25,0.28)]"
+        className="auth-sheet relative w-full overflow-x-clip overflow-y-auto rounded-t-[28px] bg-white shadow-[0_-18px_80px_rgba(12,28,25,0.28)] sm:max-w-[400px] sm:rounded-[28px] sm:shadow-[0_28px_80px_rgba(12,28,25,0.28)]"
         style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom, 0px))' }}
       >
         <div className="relative px-6 pb-6 pt-5 sm:px-7 sm:pt-7">
@@ -126,36 +112,26 @@ export function StudentNumberGate({
           >
             <X size={16} />
           </button>
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#d1734b]">Students only</p>
-          <h2 id="student-number-title" className="mt-2 max-w-[18rem] font-display text-[1.65rem] font-bold tracking-[-0.04em] text-[#243e39]">
-            {copy.title}
-          </h2>
-          <p className="mt-2 max-w-[22rem] text-sm leading-6 text-[#748780]">{copy.body}</p>
-          <div className="mt-6 flex items-center gap-3 rounded-2xl border border-[#e8eeeb] bg-[#f8fbf9] px-3.5 py-3">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#d1734b] shadow-[0_6px_16px_rgba(49,94,85,0.08)]">
-              <GraduationCap size={18} />
-            </span>
-            <p className="text-[13px] leading-5 text-[#5f746c]">Saved once on your profile. You will not be asked again.</p>
-          </div>
-          <label className="mt-5 block text-[13px] font-semibold text-[#2e4942]">
+          <h2 id="student-number-title" className="pr-10 font-display text-[1.55rem] font-bold tracking-[-0.04em] text-[#243e39]">
             Student number
-            <input
-              ref={inputRef}
-              autoComplete="off"
-              value={value}
-              onChange={(event) => setValue(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault()
-                  void save()
-                }
-              }}
-              placeholder="e.g. 21/U/12345/PS"
-              className={FIELD}
-            />
-          </label>
-          <p className="mt-2 text-[12px] leading-5 text-[#8b9994]">{copy.hint}</p>
-          {error && <p role="alert" className="mt-4 text-sm text-[#c45b38]">{error}</p>}
+          </h2>
+          <p className="mt-1.5 text-sm leading-6 text-[#748780]">Required for students. Saved once.</p>
+          <input
+            ref={inputRef}
+            aria-labelledby="student-number-title"
+            autoComplete="off"
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                void save()
+              }
+            }}
+            placeholder="e.g. 21/U/12345/PS"
+            className={`mt-5 ${FIELD}`}
+          />
+          {error && <p role="alert" className="mt-3 text-sm text-[#c45b38]">{error}</p>}
           <button
             type="button"
             disabled={busy}

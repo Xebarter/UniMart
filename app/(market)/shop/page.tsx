@@ -4,18 +4,26 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ShopHub } from '@/components/market/shop-hub'
 import { ShopSetup } from '@/components/market/shop-setup'
+import { StudentNumberGate } from '@/components/market/student-number-gate'
 import { useMarket } from '@/components/market/provider'
 import { marketPaths } from '@/lib/market-paths'
+import { hasStudentNumber } from '@/lib/student-number'
 
 export default function ShopPage() {
   const router = useRouter()
   const { profile, loading, requestShop, myShop, setMyShop } = useMarket()
   const [editingShop, setEditingShop] = useState(false)
+  const needsStudentNumber = Boolean(profile) && !hasStudentNumber(profile?.student_number)
+  const [studentGateOpen, setStudentGateOpen] = useState(false)
 
   useEffect(() => {
     if (loading) return
     if (!profile) requestShop()
   }, [loading, profile, requestShop])
+
+  useEffect(() => {
+    setStudentGateOpen(needsStudentNumber)
+  }, [needsStudentNumber])
 
   if (!profile) return null
 
@@ -34,6 +42,11 @@ export default function ShopPage() {
       ) : (
         <ShopHub shop={myShop} onEditShop={() => setEditingShop(true)} onCompose={() => router.push(marketPaths.postShop)} />
       )}
+      <StudentNumberGate
+        open={studentGateOpen}
+        onClose={() => router.push(marketPaths.home)}
+        onSaved={() => setStudentGateOpen(false)}
+      />
     </div>
   )
 }

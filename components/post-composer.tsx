@@ -459,6 +459,9 @@ export function PostComposer({
                     type="button"
                     onClick={() => {
                       setType(id)
+                      if (needsStudentNumber(id) && !hasStudentNumber(profile.student_number)) {
+                        setStudentGateOpen(true)
+                      }
                       if (!isDesktop() && step === 0) setStep(1)
                     }}
                     className={`min-h-[108px] rounded-2xl border p-3.5 text-left transition sm:min-h-0 sm:p-4 ${
@@ -765,7 +768,6 @@ export function PostComposer({
       </div>
       <StudentNumberGate
         open={studentGateOpen}
-        context="listing"
         onClose={() => setStudentGateOpen(false)}
         onSaved={() => {
           setStudentGateOpen(false)
