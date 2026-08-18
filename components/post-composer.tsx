@@ -18,8 +18,10 @@ import {
   X,
 } from 'lucide-react'
 import { ListingPhoto } from '@/components/listing-photo'
+import { StudentNumberGate } from '@/components/market/student-number-gate'
 import { api } from '@/lib/api-client'
 import { formatUGX, listingImage, parsePrice, rentPeriodSuffix } from '@/lib/format'
+import { hasStudentNumber, needsStudentNumber } from '@/lib/student-number'
 import type { Listing, ListingCategory, Profile, RentPeriod } from '@/lib/types'
 
 const MAX_PHOTOS = 6
@@ -189,6 +191,13 @@ export function PostComposer({
   const copy = placeholders(type)
   const amount = parsePrice(price)
   const emptyPhotos = !existingPhotos.length && !files.length
+  const needsStudentGate = needsStudentNumber(type) && !hasStudentNumber(profile.student_number) && (!listing || !needsStudentNumber(listing.category))
+  const [studentGateOpen, setStudentGateOpen] = useState(needsStudentGate)
+
+  useEffect(() => {
+    if (needsStudentGate) setStudentGateOpen(true)
+    else setStudentGateOpen(false)
+  }, [needsStudentGate])
 
   const previews = useMemo(
     () => files.map((file) => ({ file, url: URL.createObjectURL(file) })),
@@ -241,6 +250,10 @@ export function PostComposer({
   }
 
   async function saveListing() {
+    if (needsStudentGate) {
+      setStudentGateOpen(true)
+      return
+    }
     const trimmedTitle = title.trim()
     const trimmedDescription = description.trim()
     const trimmedLocation = location.trim()
@@ -713,7 +726,13 @@ export function PostComposer({
               {step < 2 ? (
                 <button
                   type="button"
-                  onClick={() => setStep(step + 1)}
+                  onClick={() => {
+                    if (needsStudentGate) {
+                      setStudentGateOpen(true)
+                      return
+                    }
+                    setStep(step + 1)
+                  }}
                   className="inline-flex h-12 flex-[1.35] items-center justify-center rounded-xl bg-[#315e55] text-sm font-bold text-white shadow-[0_10px_24px_rgba(49,94,85,0.18)]"
                 >
                   Continue
@@ -744,6 +763,15 @@ export function PostComposer({
           </div>
         </aside>
       </div>
+      <StudentNumberGate
+        open={studentGateOpen}
+        context="listing"
+        onClose={() => setStudentGateOpen(false)}
+        onSaved={() => {
+          setStudentGateOpen(false)
+          if (!isDesktop() && step === 0) setStep(1)
+        }}
+      />
     </div>
   )
 }

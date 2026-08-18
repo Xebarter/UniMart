@@ -1,6 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
-import { dbError, jsonError, jsonOk, parseJson, requireUser } from '@/lib/api/http'
+import { dbError, jsonError, jsonOk, parseJson, rejectIfMissingStudentNumber, requireUser } from '@/lib/api/http'
 import { isCategory, isRentPeriod } from '@/lib/format'
+import {
+  isStudentNumberRequiredError,
+  needsStudentNumber,
+  STUDENT_NUMBER_LISTING_REQUIRED,
+} from '@/lib/student-number'
 
 const LISTING_SELECT = '*, listing_media(*), profiles:owner_id(id, display_name, university, campus, avatar_url, verified)'
 
@@ -55,7 +60,15 @@ export async function PATCH(request: Request, { params }: Params) {
     updates.shop_id = shop.id
   }
   if (!Object.keys(updates).length) return jsonError('Nothing to update.')
+  if (typeof updates.category === 'string' && needsStudentNumber(updates.category)) {
+    const { data: current } = await auth.supabase.from('listings').select('category').eq('id', id).eq('owner_id', auth.user.id).maybeSingle()
+    if (current && !needsStudentNumber(current.category)) {
+      const missing = await rejectIfMissingStudentNumber(auth.supabase, auth.user.id, STUDENT_NUMBER_LISTING_REQUIRED)
+      if (missing) return missing
+    }
+  }
   const { data, error } = await auth.supabase.from('listings').update(updates).eq('id', id).eq('owner_id', auth.user.id).select(LISTING_SELECT).maybeSingle()
+  if (isStudentNumberRequiredError(error)) return jsonError(STUDENT_NUMBER_LISTING_REQUIRED, 403)
   if (error) return dbError(error, 'Unable to update listing.', 400)
   if (!data) return jsonError('Listing not found.', 404)
   return jsonOk({ data })

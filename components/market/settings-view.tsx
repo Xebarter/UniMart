@@ -25,6 +25,7 @@ import { signOutUniMart } from '@/lib/auth-session'
 import { disableFirebasePushNotifications, enableFirebasePushNotifications, isFirebasePushSupported } from '@/lib/firebase-messaging'
 import { colorFromSeed, timeAgo } from '@/lib/format'
 import { marketPaths } from '@/lib/market-paths'
+import { normalizeStudentNumber, validateStudentNumber } from '@/lib/student-number'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile } from '@/lib/types'
 
@@ -35,7 +36,7 @@ type Section = 'account' | 'campus' | 'notifications' | 'privacy' | 'security'
 
 const NAV: { id: Section; label: string; hint: string; icon: typeof UserRound }[] = [
   { id: 'account', label: 'Account', hint: 'Photo, name, and bio', icon: UserRound },
-  { id: 'campus', label: 'Location', hint: 'University and area', icon: MapPin },
+  { id: 'campus', label: 'Location', hint: 'University, area, and student number', icon: MapPin },
   { id: 'notifications', label: 'Notifications', hint: 'Email, messages, and alerts', icon: Bell },
   { id: 'privacy', label: 'Privacy', hint: 'How others see you', icon: Shield },
   { id: 'security', label: 'Security', hint: 'Password and sessions', icon: Lock },
@@ -359,19 +360,21 @@ function CampusSection({
 }) {
   const [university, setUniversity] = useState(profile.university ?? '')
   const [campus, setCampus] = useState(profile.campus ?? '')
+  const [studentNumber, setStudentNumber] = useState(profile.student_number ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
     setUniversity(profile.university ?? '')
     setCampus(profile.campus ?? '')
+    setStudentNumber(profile.student_number ?? '')
   }, [profile])
 
   return (
     <Card
       eyebrow="Location"
       title="Location"
-      description="Helps buyers know where you are, and fills the location chip in the top bar."
+      description="Helps buyers know where you are, and lets you post products, services, rentals, or a shop."
       footer={(
         <div className="flex flex-wrap items-center justify-between gap-3">
           {error ? <p role="alert" className="text-sm text-[#b85a38]">{error}</p> : <p className="text-xs text-[#8b9994]">Use the name people actually search for.</p>}
@@ -382,11 +385,20 @@ function CampusSection({
               setBusy(true)
               setError('')
               try {
+                const trimmedNumber = normalizeStudentNumber(studentNumber)
+                if (trimmedNumber) {
+                  const invalid = validateStudentNumber(trimmedNumber)
+                  if (invalid) {
+                    setError(invalid)
+                    return
+                  }
+                }
                 const result = await api.updateProfile({
                   display_name: profile.display_name,
                   university,
                   campus,
                   bio: profile.bio,
+                  student_number: trimmedNumber,
                 })
                 setProfile(result.data)
                 notify('Location saved')
@@ -410,6 +422,17 @@ function CampusSection({
         <Field label="Area">
           <input value={campus} onChange={(event) => setCampus(event.target.value)} placeholder="e.g. Wandegeya, Kikoni" className={inputClass} />
         </Field>
+        <div className="sm:col-span-2">
+        <Field label="Student number" hint="Required to sell or open a shop">
+          <input
+            value={studentNumber}
+            onChange={(event) => setStudentNumber(event.target.value)}
+            placeholder="e.g. 21/U/12345/PS"
+            autoComplete="off"
+            className={inputClass}
+          />
+        </Field>
+        </div>
       </div>
       <div className="mt-5 flex items-start gap-3 rounded-2xl border border-[#eef3f0] bg-[#f8fbf9] p-4">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#d1734b]"><MapPin size={16} /></span>

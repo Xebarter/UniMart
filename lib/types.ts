@@ -17,6 +17,7 @@ export type Profile = {
   role: UserRole
   verified: boolean
   account_status?: AccountStatus
+  student_number?: string | null
   created_at: string
   updated_at: string
   email?: string | null

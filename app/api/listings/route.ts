@@ -1,6 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
-import { dbError, jsonError, jsonOk, parseJson, rejectIfRestricted, requireUser } from '@/lib/api/http'
+import { dbError, jsonError, jsonOk, parseJson, rejectIfMissingStudentNumber, rejectIfRestricted, requireUser } from '@/lib/api/http'
 import { isCategory, isRentPeriod } from '@/lib/format'
+import {
+  isStudentNumberRequiredError,
+  needsStudentNumber,
+  STUDENT_NUMBER_LISTING_REQUIRED,
+} from '@/lib/student-number'
 
 const LISTING_SELECT = '*, listing_media(*), profiles:owner_id(id, display_name, university, campus, avatar_url, verified)'
 
@@ -60,6 +65,10 @@ export async function POST(request: Request) {
   const price = Number(body.price)
   if (!title || title.length > 120) return jsonError('A title up to 120 characters is required.')
   if (!isCategory(category)) return jsonError('Choose Products, Services, Rentals, or Gigs.')
+  if (needsStudentNumber(category)) {
+    const missing = await rejectIfMissingStudentNumber(auth.supabase, auth.user.id, STUDENT_NUMBER_LISTING_REQUIRED)
+    if (missing) return missing
+  }
   if (!Number.isFinite(price) || price < 0) return jsonError('A valid price is required.')
   const rentPeriod = category === 'Rentals'
     ? (typeof body.rent_period === 'string' && isRentPeriod(body.rent_period) ? body.rent_period : 'month')
@@ -86,6 +95,7 @@ export async function POST(request: Request) {
     })
     .select(LISTING_SELECT)
     .single()
+  if (isStudentNumberRequiredError(error)) return jsonError(STUDENT_NUMBER_LISTING_REQUIRED, 403)
   if (error) return dbError(error, 'Unable to create listing.', 400)
   return jsonOk({ data }, 201)
 }

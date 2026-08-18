@@ -1,4 +1,10 @@
 import { authPhotoUrl, dbError, jsonError, jsonOk, parseJson, requireUser } from '@/lib/api/http'
+import {
+  isStudentNumberTakenError,
+  normalizeStudentNumber,
+  STUDENT_NUMBER_TAKEN,
+  validateStudentNumber,
+} from '@/lib/student-number'
 
 export async function GET() {
   const auth = await requireUser()
@@ -46,7 +52,18 @@ export async function PATCH(request: Request) {
     updated_at: new Date().toISOString(),
   }
   if (typeof body.avatar_url === 'string') updates.avatar_url = body.avatar_url.trim() || null
+  if (typeof body.student_number === 'string') {
+    const studentNumber = normalizeStudentNumber(body.student_number)
+    if (!studentNumber) {
+      updates.student_number = null
+    } else {
+      const invalid = validateStudentNumber(studentNumber)
+      if (invalid) return jsonError(invalid)
+      updates.student_number = studentNumber
+    }
+  }
   const { data, error } = await auth.supabase.from('profiles').upsert(updates).select().single()
+  if (isStudentNumberTakenError(error)) return jsonError(STUDENT_NUMBER_TAKEN, 409)
   if (error) return dbError(error, 'Unable to update profile.')
   return jsonOk({ data })
 }

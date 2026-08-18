@@ -1,6 +1,7 @@
 import { ilikeOr, sanitizeSearch } from '@/lib/admin/query'
 import { createClient } from '@/lib/supabase/server'
-import { dbError, jsonError, jsonOk, parseJson, rejectIfRestricted, requireUser } from '@/lib/api/http'
+import { dbError, jsonError, jsonOk, parseJson, rejectIfMissingStudentNumber, rejectIfRestricted, requireUser } from '@/lib/api/http'
+import { isStudentNumberRequiredError, STUDENT_NUMBER_SHOP_REQUIRED } from '@/lib/student-number'
 import { slugifyShopName } from '@/lib/shop'
 import type { Shop } from '@/lib/types'
 
@@ -126,6 +127,8 @@ export async function POST(request: Request) {
   if (auth.response) return auth.response
   const restricted = await rejectIfRestricted(auth.supabase, auth.user.id)
   if (restricted) return restricted
+  const missingStudent = await rejectIfMissingStudentNumber(auth.supabase, auth.user.id, STUDENT_NUMBER_SHOP_REQUIRED)
+  if (missingStudent) return missingStudent
   const body = await parseJson(request)
   if (!body) return jsonError('Invalid JSON body.')
   const fields = shopFields(body, { requireName: true })
@@ -146,6 +149,7 @@ export async function POST(request: Request) {
     })
     .select(SHOP_SELECT)
     .single()
+  if (isStudentNumberRequiredError(error)) return jsonError(STUDENT_NUMBER_SHOP_REQUIRED, 403)
   if (error) return dbError(error, 'Unable to open your shop.', 400)
   return jsonOk({ data: data as Shop }, 201)
 }

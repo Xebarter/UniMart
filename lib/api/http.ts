@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { User } from '@supabase/supabase-js'
 import { isRestrictedStatus, loadAccountStatus, loadOperator } from '@/lib/admin/account'
+import { hasStudentNumber } from '@/lib/student-number'
 import { createClient } from '@/lib/supabase/server'
 import type { createClient as createServerSupabase } from '@/lib/supabase/server'
 import type { AdminOperator } from '@/lib/types'
@@ -68,6 +69,16 @@ export async function rejectIfRestricted(supabase: Awaited<ReturnType<typeof cre
     status === 'banned' ? 'This account has been banned.' : 'This account is suspended.',
     403,
   )
+}
+
+export async function rejectIfMissingStudentNumber(
+  supabase: Awaited<ReturnType<typeof createServerSupabase>>,
+  userId: string,
+  message: string,
+) {
+  const { data } = await supabase.from('profiles').select('student_number').eq('id', userId).maybeSingle()
+  if (hasStudentNumber(data?.student_number)) return null
+  return jsonError(message, 403)
 }
 
 export async function parseJson<T = Record<string, unknown>>(request: Request): Promise<T | null> {

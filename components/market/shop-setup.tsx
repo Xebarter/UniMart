@@ -1,10 +1,12 @@
 'use client'
 
-import { FormEvent, useMemo, useRef, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { ImagePlus } from 'lucide-react'
+import { StudentNumberGate } from '@/components/market/student-number-gate'
 import { useMarket } from '@/components/market/provider'
 import { api } from '@/lib/api-client'
 import { slugifyShopName } from '@/lib/shop'
+import { hasStudentNumber } from '@/lib/student-number'
 import type { Shop } from '@/lib/types'
 
 export function ShopSetup({
@@ -27,6 +29,13 @@ export function ShopSetup({
   const inputRef = useRef<HTMLInputElement>(null)
   const slug = useMemo(() => slugifyShopName(name), [name])
   const editing = Boolean(shop)
+  const needsStudentGate = !editing && !hasStudentNumber(profile?.student_number)
+  const [studentGateOpen, setStudentGateOpen] = useState(needsStudentGate)
+
+  useEffect(() => {
+    if (needsStudentGate) setStudentGateOpen(true)
+    else setStudentGateOpen(false)
+  }, [needsStudentGate])
 
   async function onCover(file: File) {
     if (!file.type.startsWith('image/')) {
@@ -43,6 +52,10 @@ export function ShopSetup({
 
   async function submit(event: FormEvent) {
     event.preventDefault()
+    if (needsStudentGate) {
+      setStudentGateOpen(true)
+      return
+    }
     setBusy(true)
     setError('')
     try {
@@ -144,6 +157,12 @@ export function ShopSetup({
           </div>
         </div>
       </form>
+      <StudentNumberGate
+        open={studentGateOpen}
+        context="shop"
+        onClose={() => setStudentGateOpen(false)}
+        onSaved={() => setStudentGateOpen(false)}
+      />
     </div>
   )
 }
