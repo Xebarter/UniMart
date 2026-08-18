@@ -51,7 +51,7 @@ export function ListingDetail({ listing }: { listing: Listing }) {
   const featured = isFeatured(listing)
   const photos = useMemo(() => listingPhotos(listing), [listing])
   const activePhoto = photos[Math.min(photoIndex, photos.length - 1)] ?? photos[0]
-  const seller = listing.profiles?.display_name ?? 'Student'
+  const seller = listing.profiles?.display_name ?? 'Seller'
   const condition = listing.category === 'Products' ? conditionLabel(listing.condition) : null
   const period = listing.category === 'Rentals' ? rentPeriodLabel(listing.rent_period) : null
   const unavailable = listing.status === 'sold' || listing.status === 'archived' || listing.status === 'removed'
@@ -336,7 +336,7 @@ export function ListingDetail({ listing }: { listing: Listing }) {
               )}
             </div>
 
-            <p className="mt-4 text-[11px] leading-5 text-[#8b9994]">Meet in a public campus spot. Confirm the item in person before you pay.</p>
+            <p className="mt-4 text-[11px] leading-5 text-[#8b9994]">Meet in a public place. Confirm the item in person before you pay.</p>
           </div>
 
           <div className="mt-4 rounded-[24px] border border-[#e5eae7] bg-white p-5 shadow-[0_8px_24px_rgba(36,62,57,0.04)] sm:rounded-[28px] sm:p-6">
@@ -349,7 +349,7 @@ export function ListingDetail({ listing }: { listing: Listing }) {
                   {listing.profiles?.verified && <BadgeCheck size={16} className="shrink-0 text-[#4e786a]" />}
                 </p>
                 <p className="mt-1 text-xs leading-5 text-[#748780]">
-                  {[listing.profiles?.university, listing.profiles?.campus].filter(Boolean).join(' · ') || 'Campus seller'}
+                  {[listing.profiles?.university, listing.profiles?.campus].filter(Boolean).join(' · ') || 'Seller'}
                 </p>
               </div>
             </div>
@@ -381,7 +381,7 @@ export function ListingDetail({ listing }: { listing: Listing }) {
       {related.length > 0 && (
         <section className="mt-10 sm:mt-12">
           <div className="mb-4">
-            <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#d1734b]">More on campus</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#d1734b]">More like this</p>
             <h2 className="mt-1 font-display text-xl font-bold tracking-[-0.03em] text-[#29463f]">Similar listings</h2>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
@@ -403,7 +403,7 @@ export function ListingDetail({ listing }: { listing: Listing }) {
             </button>
             <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#d1734b]">Feature listing</p>
             <h2 className="mt-2 font-display text-2xl font-bold tracking-[-0.04em] text-[#243e39]">Get more eyes on this post</h2>
-            <p className="mt-2 text-sm leading-6 text-[#71827b]">Featured listings appear first on campus. Pay with mobile money or a card.</p>
+            <p className="mt-2 text-sm leading-6 text-[#71827b]">Featured listings appear first in search. Pay with mobile money or a card.</p>
             <div className="mt-5 grid grid-cols-2 gap-2">
               <button type="button" disabled={busy} onClick={() => pay('mobile_money')} className="flex flex-col items-center gap-2 rounded-2xl border border-[#dfe7e3] bg-[#fbfcfb] px-3 py-4 text-xs font-bold text-[#315e55] transition hover:border-[#8bb4a7] disabled:opacity-60">
                 <span className="flex size-11 items-center justify-center rounded-2xl bg-[#e7f0ed] text-[#315e55]"><Smartphone size={20} /></span>

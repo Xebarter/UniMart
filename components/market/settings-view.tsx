@@ -7,7 +7,6 @@ import {
   Bell,
   Camera,
   CheckCircle2,
-  GraduationCap,
   Lock,
   LogOut,
   Mail,
@@ -50,9 +49,9 @@ const DEFAULT_PREFS: NotificationPrefs = {
 
 const NAV: { id: Section; label: string; hint: string; icon: typeof UserRound }[] = [
   { id: 'account', label: 'Account', hint: 'Photo, name, and bio', icon: UserRound },
-  { id: 'campus', label: 'Campus', hint: 'University and location', icon: GraduationCap },
+  { id: 'campus', label: 'Location', hint: 'University and area', icon: MapPin },
   { id: 'notifications', label: 'Notifications', hint: 'Messages and alerts', icon: Bell },
-  { id: 'privacy', label: 'Privacy', hint: 'How campus sees you', icon: Shield },
+  { id: 'privacy', label: 'Privacy', hint: 'How others see you', icon: Shield },
   { id: 'security', label: 'Security', hint: 'Password and sessions', icon: Lock },
 ]
 
@@ -116,7 +115,7 @@ export function SettingsView() {
           <div className="pointer-events-none absolute -right-10 -top-16 h-56 w-56 rotate-[-18deg] rounded-[44%] border-[22px] border-[#47766b] opacity-60" />
           <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#c7ddd6]">Settings</p>
           <h1 className="mt-3 font-display text-[1.85rem] font-bold tracking-[-0.04em] sm:text-4xl">Sign in to manage your account.</h1>
-          <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[#d4e4df]">Update your campus profile, notification preferences, and security from one place.</p>
+          <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[#d4e4df]">Update your profile, notification preferences, and security from one place.</p>
           <a href={loginHref(pathname || '/settings')} className="mt-8 inline-flex h-11 items-center justify-center rounded-xl bg-[#f3c8ad] px-5 text-sm font-bold text-[#315e55] hover:bg-white">
             Sign in
           </a>
@@ -131,7 +130,7 @@ export function SettingsView() {
         <div className="pointer-events-none absolute -right-8 -top-20 h-52 w-52 rounded-full border-[22px] border-[#eef4f1]" />
         <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#d1734b]">Your space</p>
         <h1 className="mt-1 font-display text-[1.85rem] font-bold tracking-[-0.04em] text-[#243e39] sm:text-[2.15rem]">Settings</h1>
-        <p className="mt-2 max-w-xl text-sm leading-6 text-[#748780]">A quieter place to keep your UniMart account accurate, private, and ready for campus.</p>
+        <p className="mt-2 max-w-xl text-sm leading-6 text-[#748780]">A quieter place to keep your UniMart account accurate, private, and ready to use.</p>
       </header>
 
       <div className="mt-6 grid items-start gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
@@ -313,7 +312,7 @@ function AccountSection({
         </button>
         <div className="min-w-0">
           <p className="text-sm font-bold text-[#29463f]">{photoBusy ? 'Uploading…' : 'Profile photo'}</p>
-          <p className="mt-1 text-sm leading-6 text-[#748780]">A clear face photo helps campus trust you. JPG, PNG, or WEBP, under 5MB.</p>
+          <p className="mt-1 text-sm leading-6 text-[#748780]">A clear face photo helps others trust you. JPG, PNG, or WEBP, under 5MB.</p>
           <button type="button" onClick={() => photoRef.current?.click()} className="mt-2 text-xs font-bold text-[#315e55]">
             Upload a new photo
           </button>
@@ -354,7 +353,7 @@ function AccountSection({
             <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#8b9994]">Account type</p>
             <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold capitalize text-[#29463f]">
               {profile.verified && <CheckCircle2 size={14} className="text-[#4e786a]" />}
-              {profile.verified ? 'Student · verified' : 'Student'}
+              {profile.verified ? 'Member · verified' : 'Member'}
             </p>
           </div>
         </div>
@@ -386,11 +385,11 @@ function CampusSection({
   return (
     <Card
       eyebrow="Location"
-      title="Campus"
+      title="Location"
       description="Helps buyers know where you are, and fills the location chip in the top bar."
       footer={(
         <div className="flex flex-wrap items-center justify-between gap-3">
-          {error ? <p role="alert" className="text-sm text-[#b85a38]">{error}</p> : <p className="text-xs text-[#8b9994]">Use the name students actually search for.</p>}
+          {error ? <p role="alert" className="text-sm text-[#b85a38]">{error}</p> : <p className="text-xs text-[#8b9994]">Use the name people actually search for.</p>}
           <button
             type="button"
             disabled={busy}
@@ -405,16 +404,16 @@ function CampusSection({
                   bio: profile.bio,
                 })
                 setProfile(result.data)
-                notify('Campus details saved')
+                notify('Location saved')
               } catch (err) {
-                setError(err instanceof Error ? err.message : 'Unable to save campus details.')
+                setError(err instanceof Error ? err.message : 'Unable to save location.')
               } finally {
                 setBusy(false)
               }
             }}
             className="h-10 rounded-xl bg-[#315e55] px-4 text-xs font-bold text-white hover:bg-[#274c44] disabled:opacity-60"
           >
-            {busy ? 'Saving…' : 'Save campus'}
+            {busy ? 'Saving…' : 'Save location'}
           </button>
         </div>
       )}
@@ -423,13 +422,13 @@ function CampusSection({
         <Field label="University">
           <input value={university} onChange={(event) => setUniversity(event.target.value)} placeholder="e.g. Makerere University" className={inputClass} />
         </Field>
-        <Field label="Campus or area">
-          <input value={campus} onChange={(event) => setCampus(event.target.value)} placeholder="e.g. Main campus, Wandegeya" className={inputClass} />
+        <Field label="Area">
+          <input value={campus} onChange={(event) => setCampus(event.target.value)} placeholder="e.g. Wandegeya, Kikoni" className={inputClass} />
         </Field>
       </div>
       <div className="mt-5 flex items-start gap-3 rounded-2xl border border-[#eef3f0] bg-[#f8fbf9] p-4">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#d1734b]"><MapPin size={16} /></span>
-        <p className="text-sm leading-6 text-[#5f746c]">Listings still have their own location. This is your home campus — the place UniMart assumes unless you say otherwise.</p>
+        <p className="text-sm leading-6 text-[#5f746c]">Listings still have their own location. This is your usual area — the place UniMart assumes unless you say otherwise.</p>
       </div>
     </Card>
   )
@@ -492,7 +491,7 @@ function NotificationsSection({
 
   return (
     <div className="space-y-5">
-      <Card eyebrow="Alerts" title="Notifications" description="Choose what UniMart should surface while you are on campus and in the app.">
+      <Card eyebrow="Alerts" title="Notifications" description="Choose what UniMart should surface while you are nearby and in the app.">
         <div className="divide-y divide-[#eef3f0]">
           <Toggle
             checked={prefs.messages}
@@ -509,7 +508,7 @@ function NotificationsSection({
           <Toggle
             checked={prefs.magazine}
             onChange={(value) => update({ ...prefs, magazine: value })}
-            label="Campus magazine"
+            label="Magazine"
             hint="Stories and community notes from Explore."
           />
           <Toggle
@@ -567,12 +566,12 @@ function NotificationsSection({
 
 function PrivacySection({ profile, email }: { profile: Profile; email: string }) {
   return (
-    <Card eyebrow="Visibility" title="Privacy" description="UniMart is a campus marketplace. People you deal with should be able to trust who you are.">
+    <Card eyebrow="Visibility" title="Privacy" description="UniMart is a local marketplace. People you deal with should be able to trust who you are.">
       <ul className="space-y-3">
         <PrivacyRow
           icon={<UserRound size={16} />}
           title="Public profile"
-          body="Your name, photo, university, campus, and bio appear on listings you post."
+          body="Your name, photo, university, area, and bio appear on listings you post."
           value="Visible"
         />
         <PrivacyRow
@@ -590,14 +589,14 @@ function PrivacySection({ profile, email }: { profile: Profile; email: string })
         <PrivacyRow
           icon={<ShieldCheck size={16} />}
           title="Verification"
-          body={profile.verified ? 'Your student badge is shown on your profile and listings.' : 'Ask an admin if you need a verified student badge.'}
+          body={profile.verified ? 'Your verified badge is shown on your profile and listings.' : 'Ask an admin if you need a verified member badge.'}
           value={profile.verified ? 'Verified' : 'Standard'}
         />
       </ul>
       <p className="mt-6 text-sm leading-6 text-[#748780]">
         Need to hide a listing instead? Manage it from{' '}
         <Link href={marketPaths.shop} className="font-bold text-[#315e55]">Shop</Link>
-        , or update what campus sees on your{' '}
+        , or update what others see on your{' '}
         <Link href={marketPaths.profile} className="font-bold text-[#315e55]">profile</Link>.
       </p>
     </Card>

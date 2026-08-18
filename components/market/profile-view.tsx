@@ -41,7 +41,7 @@ function profileTasks(profile: Profile) {
   return [
     { id: 'photo', label: 'Add a profile photo', done: Boolean(profile.avatar_url) },
     { id: 'university', label: 'Add your university', done: Boolean(profile.university?.trim()) },
-    { id: 'campus', label: 'Add your campus or area', done: Boolean(profile.campus?.trim()) },
+    { id: 'campus', label: 'Add your area', done: Boolean(profile.campus?.trim()) },
     { id: 'bio', label: 'Write a short bio', done: Boolean(profile.bio?.trim()) },
   ]
 }
@@ -146,7 +146,7 @@ export function ProfileView() {
         <section className="relative overflow-hidden rounded-[28px] bg-[#315e55] px-6 py-14 text-center text-white sm:px-12 sm:py-16">
           <div className="pointer-events-none absolute -right-10 -top-16 h-56 w-56 rotate-[-18deg] rounded-[44%] border-[22px] border-[#47766b] opacity-60" />
           <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#c7ddd6]">Your profile</p>
-          <h1 className="mt-3 font-display text-[1.85rem] font-bold tracking-[-0.04em] sm:text-4xl">Sign in to your campus market.</h1>
+          <h1 className="mt-3 font-display text-[1.85rem] font-bold tracking-[-0.04em] sm:text-4xl">Sign in to your marketplace.</h1>
           <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[#d4e4df]">Save listings, message sellers, and keep your storefront in one place.</p>
           <a href={loginHref(pathname || '/profile')} className="mt-8 inline-flex h-11 items-center justify-center rounded-xl bg-[#f3c8ad] px-5 text-sm font-bold text-[#315e55] hover:bg-white">
             Sign in
@@ -205,7 +205,7 @@ export function ProfileView() {
                   <h1 className="font-display text-[1.65rem] font-bold tracking-[-0.04em] text-[#243e39] sm:text-[2rem]">{profile.display_name}</h1>
                   {profile.verified && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-[#e7f2ed] px-2.5 py-1 text-[10px] font-bold text-[#4e786a]">
-                      <CheckCircle2 size={12} /> Verified student
+                      <CheckCircle2 size={12} /> Verified
                     </span>
                   )}
                 </div>
@@ -216,7 +216,7 @@ export function ProfileView() {
                   </span>
                   <span className="inline-flex items-center gap-1.5">
                     <MapPin size={14} />
-                    {profile.campus || 'Add your campus'}
+                    {profile.campus || 'Add your area'}
                   </span>
                 </p>
               </div>
@@ -319,11 +319,11 @@ export function ProfileView() {
           <p className="mt-1 text-xs text-[#95a19d]">
             {tab === 'listings'
               ? myShop
-                ? 'How campus sees you. Sold, archive, and feature live in Shop.'
+                ? 'How others see you. Sold, archive, and feature live in Shop.'
                 : 'Your live listings. Edit them here, or open a shop to add sold, archive, and feature.'
               : tab === 'saved'
                 ? 'Listings you are keeping an eye on.'
-                : 'Sellers and students you want to keep up with.'}
+                : 'Sellers and shops you want to keep up with.'}
           </p>
         </div>
         {tab === 'listings' && (
@@ -357,7 +357,7 @@ export function ProfileView() {
               <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-[#748780]">
                 {tab === 'saved'
                   ? 'Tap the heart on a listing to keep it here.'
-                  : 'Put something up for campus. A clear photo and a fair price usually get the first message.'}
+                  : 'Put something up for sale. A clear photo and a fair price usually get the first message.'}
               </p>
               {tab === 'listings' && (
                 <button type="button" onClick={requestPost} className="mt-5 inline-flex h-11 items-center gap-2 rounded-xl bg-[#315e55] px-5 text-sm font-bold text-white hover:bg-[#274c44]">
@@ -387,7 +387,7 @@ export function ProfileView() {
                     <Avatar name={person.display_name} color={colorFromSeed(person.id)} image={person.avatar_url} />
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-bold text-[#29463f]">{person.display_name}</span>
-                      <span className="block truncate text-[12px] text-[#8b9994]">{person.university || person.campus || 'Student'}</span>
+                      <span className="block truncate text-[12px] text-[#8b9994]">{person.university || person.campus || 'Member'}</span>
                     </span>
                   </div>
                 )}
@@ -530,8 +530,8 @@ function EditProfile({
             <input value={university} onChange={(event) => setUniversity(event.target.value)} placeholder="e.g. Makerere University" className="mt-2 h-11 w-full rounded-xl border border-[#e5eae7] bg-[#fbfcfb] px-3.5 text-sm outline-none focus:border-[#86aa9e] focus:ring-2 focus:ring-[#dcebe6]" />
           </label>
           <label className="block text-xs font-bold text-[#526861]">
-            Campus or area
-            <input value={campus} onChange={(event) => setCampus(event.target.value)} placeholder="e.g. Main campus" className="mt-2 h-11 w-full rounded-xl border border-[#e5eae7] bg-[#fbfcfb] px-3.5 text-sm outline-none focus:border-[#86aa9e] focus:ring-2 focus:ring-[#dcebe6]" />
+            Area
+            <input value={campus} onChange={(event) => setCampus(event.target.value)} placeholder="e.g. Wandegeya, Kikoni" className="mt-2 h-11 w-full rounded-xl border border-[#e5eae7] bg-[#fbfcfb] px-3.5 text-sm outline-none focus:border-[#86aa9e] focus:ring-2 focus:ring-[#dcebe6]" />
           </label>
         </div>
         <label className="mt-4 block text-xs font-bold text-[#526861]">

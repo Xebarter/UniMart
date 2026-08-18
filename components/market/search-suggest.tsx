@@ -13,7 +13,7 @@ import { groupListingsByCategory, matchingCategories, mergeShops, rankListings, 
 import type { Listing, ListingCategory, Shop } from '@/lib/types'
 
 const CATEGORY_UI: Record<ListingCategory, { hint: string; icon: typeof Package }> = {
-  Products: { hint: 'Goods & campus finds', icon: Package },
+  Products: { hint: 'Goods & everyday finds', icon: Package },
   Services: { hint: 'Skills on demand', icon: BriefcaseBusiness },
   Rentals: { hint: 'Rooms, kits & gear', icon: Home },
   Gigs: { hint: 'Short work, fair pay', icon: Tag },
@@ -417,7 +417,7 @@ export function SearchField() {
 
             {empty && featured.length > 0 && (
               <section className="mt-3">
-                <p className="mb-1.5 px-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#8a9a95]">Fresh on campus</p>
+                <p className="mb-1.5 px-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#8a9a95]">Just listed</p>
                 <div className="space-y-1">
                   {featured.map((item) => (
                     <ResultRow

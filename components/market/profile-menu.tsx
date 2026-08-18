@@ -100,7 +100,7 @@ export function ProfileMenu() {
             <Avatar name={profile.display_name} color={colorFromSeed(profile.id)} image={profile.avatar_url} />
             <span className="hidden text-left lg:block">
               <span className="block max-w-[120px] truncate text-xs font-bold text-[#2e4942]">{profile.display_name}</span>
-              <span className="block text-[10px] text-[#91a09b]">{profile.verified ? 'Verified student' : 'Student'}</span>
+              <span className="block text-[10px] text-[#91a09b]">{profile.verified ? 'Verified member' : 'Member'}</span>
             </span>
           </>
         ) : (
@@ -124,7 +124,7 @@ export function ProfileMenu() {
                   <div className="min-w-0">
                     <p className="truncate font-display text-base font-bold tracking-[-0.02em] text-[#243e39]">{profile.display_name}</p>
                     <p className="mt-0.5 truncate text-xs text-[#7d9189]">
-                      {[profile.campus, profile.university].filter(Boolean).join(' · ') || 'Campus member'}
+                      {[profile.campus, profile.university].filter(Boolean).join(' · ') || 'Member'}
                     </p>
                   </div>
                 </div>

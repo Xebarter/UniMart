@@ -174,7 +174,7 @@ function ListingRow({ listing }: { listing: Listing }) {
             <Avatar name={seller.display_name} color={colorFromSeed(seller.id)} image={seller.avatar_url} size="sm" />
             <span className="min-w-0">
               <span className="block truncate text-sm font-semibold text-[#29463f]">{seller.display_name}</span>
-              <span className="block truncate text-[11px] text-[#8b9994]">{seller.campus || seller.university || 'Campus member'}</span>
+              <span className="block truncate text-[11px] text-[#8b9994]">{seller.campus || seller.university || 'Member'}</span>
             </span>
           </Link>
         ) : (

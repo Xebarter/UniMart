@@ -120,7 +120,7 @@ function ProfileCard({ profile, onNavigate }: { profile: Profile | null; onNavig
       <Avatar name={profile.display_name} color={colorFromSeed(profile.id)} image={profile.avatar_url} />
       <span className="min-w-0">
         <span className="block truncate text-[13px] font-semibold text-white">{profile.display_name}</span>
-        <span className="block truncate text-[11px] text-[#9ab5ae]">{profile.verified ? 'Verified student' : profile.campus || profile.university || 'Student'}</span>
+        <span className="block truncate text-[11px] text-[#9ab5ae]">{profile.verified ? 'Verified member' : profile.campus || profile.university || 'Member'}</span>
       </span>
     </Link>
   )

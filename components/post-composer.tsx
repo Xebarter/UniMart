@@ -56,7 +56,7 @@ function placeholders(type: ListingCategory) {
     return {
       title: 'e.g. Graduation photography',
       price: 'Starting from',
-      location: 'Campus or studio',
+      location: 'Studio or neighborhood',
       description: 'What you do, how long it takes, and who it is for.',
     }
   }
@@ -72,14 +72,14 @@ function placeholders(type: ListingCategory) {
     return {
       title: 'e.g. Need a poster for orientation',
       price: 'Budget',
-      location: 'Campus or remote',
+      location: 'On-site or remote',
       description: 'The brief, deadline, and what done looks like.',
     }
   }
   return {
     title: 'e.g. MacBook Air M1',
     price: 'Price',
-    location: 'Campus or neighborhood',
+    location: 'Pickup area or neighborhood',
     description: 'Condition, what is included, and why it is a good buy.',
   }
 }
@@ -133,7 +133,7 @@ function PreviewCard({
         </p>
         <div className="mt-3 flex items-center gap-1.5 text-[11px] text-[#8c9995]">
           <MapPin size={12} />
-          <span className="truncate">{location.trim() || 'Campus location'}</span>
+          <span className="truncate">{location.trim() || 'Pickup location'}</span>
         </div>
         <div className="mt-3 flex items-center gap-2 border-t border-[#eff2f0] pt-3">
           <Avatar name={profile.display_name} image={profile.avatar_url} />
@@ -255,7 +255,7 @@ export function PostComposer({
       return
     }
     if (!trimmedLocation) {
-      setError('Add a pickup point or campus area.')
+      setError('Add a pickup point or area.')
       setStep(2)
       return
     }
@@ -351,7 +351,7 @@ export function PostComposer({
         </div>
         <p className="mt-6 text-[11px] font-bold uppercase tracking-[0.16em] text-[#d1734b]">{editing ? 'Saved' : 'Live on UniMart'}</p>
         <h1 className="mt-2 font-display text-[1.65rem] font-bold tracking-[-0.04em] text-[#243e39] sm:text-4xl">{editing ? 'Your listing is updated.' : 'Your listing is up.'}</h1>
-        <p className="mt-3 max-w-md text-sm leading-6 text-[#748780]">{editing ? 'Campus will see the latest details.' : 'Campus can find it now. A clear photo and a fair price usually get the first message.'}</p>
+        <p className="mt-3 max-w-md text-sm leading-6 text-[#748780]">{editing ? 'Buyers will see the latest details.' : 'People nearby can find it now. A clear photo and a fair price usually get the first message.'}</p>
         <article className="mt-8 w-full overflow-hidden rounded-2xl border border-[#e5eae7] bg-white text-left shadow-[0_10px_30px_rgba(36,62,57,0.06)]">
           <ListingPhoto listing={published} src={cover} alt={published.title} className="aspect-[4/3] w-full" />
           <div className="p-4">
@@ -407,7 +407,7 @@ export function PostComposer({
           {editing
             ? 'Save changes, then head back. You can add more photos here.'
             : embedded
-              ? 'A strong photo, a clear price, and where to find you. Campus can find it on the marketplace.'
+              ? 'A strong photo, a clear price, and where to find you. People can find it on the marketplace.'
               : 'A strong photo, a clear price, and where to find you. That is usually enough.'}
         </p>
         {shopLiveNote && !editing && embedded && (

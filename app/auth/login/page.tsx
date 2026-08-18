@@ -43,7 +43,7 @@ export default function LoginPage() {
       <form onSubmit={submit} className="w-full max-w-md rounded-3xl border border-border bg-card p-7 shadow-sm">
         <BrandLogo showWordmark wordmarkClassName="text-xl" />
         <h1 className="mt-5 font-display text-3xl font-bold text-foreground">Welcome back</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Sign in to manage your campus marketplace activity.</p>
+        <p className="mt-2 text-sm text-muted-foreground">Sign in to manage your marketplace activity.</p>
         <GoogleAuthButton label="Continue with Google" onError={setMessage} />
         <AuthDivider />
         <div className="mt-6 space-y-4">

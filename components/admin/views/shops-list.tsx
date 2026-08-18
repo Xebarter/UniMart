@@ -26,7 +26,7 @@ const STATUS_OPTIONS = [
 
 function campusLine(shop: Shop) {
   const owner = shop.profiles
-  return [owner?.campus, owner?.university].filter(Boolean).join(' · ') || 'Campus not set'
+  return [owner?.campus, owner?.university].filter(Boolean).join(' · ') || 'Location not set'
 }
 
 function ShopCard({ shop }: { shop: Shop }) {
@@ -110,7 +110,7 @@ export function ShopsListView() {
         <InsightTile
           label="In this view"
           value={loading ? '—' : total.toLocaleString()}
-          hint={filtered ? 'Matching filters' : 'All campus storefronts'}
+          hint={filtered ? 'Matching filters' : 'All storefronts'}
           icon={Store}
           active={!filtered}
           onClick={() => setParams({ status: 'all', q: '' })}

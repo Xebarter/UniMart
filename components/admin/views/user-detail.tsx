@@ -44,7 +44,7 @@ export function UserDetailView() {
       <PageHeader
         eyebrow="Directory / User"
         title={profile.display_name}
-        description={[profile.campus, profile.university].filter(Boolean).join(' · ') || 'Campus member'}
+        description={[profile.campus, profile.university].filter(Boolean).join(' · ') || 'Member'}
         actions={(
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => void patch({ verified: !profile.verified })} className="rounded-xl border border-[#dfe7e3] bg-white px-3 py-2 text-xs font-bold text-[#638076]">

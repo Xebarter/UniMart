@@ -37,7 +37,7 @@ const STATUS_OPTIONS = [
 ]
 
 function campusLine(user: Profile) {
-  return [user.campus, user.university].filter(Boolean).join(' · ') || 'Campus not set'
+  return [user.campus, user.university].filter(Boolean).join(' · ') || 'Location not set'
 }
 
 function PersonCell({ user }: { user: Profile }) {
@@ -133,7 +133,7 @@ export function UsersListView() {
       </div>
 
       <div className="rounded-[24px] border border-[#e5eae7] bg-white p-3 shadow-[0_10px_32px_rgba(36,62,57,0.04)] sm:p-4">
-        <FilterBar search={q} onSearch={(value) => setParams({ q: value })} searchPlaceholder="Search name, campus, or university">
+        <FilterBar search={q} onSearch={(value) => setParams({ q: value })} searchPlaceholder="Search name, area, or university">
           <FilterSelect value={role} onChange={(value) => setParams({ role: value })} options={ROLE_OPTIONS} />
           <FilterSelect value={verified} onChange={(value) => setParams({ verified: value })} options={VERIFIED_OPTIONS} />
           <FilterSelect value={status} onChange={(value) => setParams({ status: value })} options={STATUS_OPTIONS} />
@@ -178,7 +178,7 @@ export function UsersListView() {
             <thead className="border-b border-[#edf1ef] bg-[#f8fbf9] text-[10px] uppercase tracking-[0.12em] text-[#8b9994]">
               <tr>
                 <th className="px-5 py-3 font-bold">Person</th>
-                <th className="px-4 py-3 font-bold">Campus</th>
+                <th className="px-4 py-3 font-bold">Location</th>
                 <th className="px-4 py-3 font-bold">Role</th>
                 <th className="px-4 py-3 font-bold">Account</th>
                 <th className="px-4 py-3 font-bold">Joined</th>
@@ -233,7 +233,7 @@ export function UsersListView() {
           <EmptyState
             icon={UserRound}
             title="No people match these filters"
-            description="Try another campus, role, or verification state. Export still includes the current search."
+            description="Try another area, role, or verification state. Export still includes the current search."
           />
         ) : null}
 

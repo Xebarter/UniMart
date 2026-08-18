@@ -35,7 +35,7 @@ export function OverviewView() {
               Good to see you, {firstName}.
             </h1>
             <p className="mt-3 max-w-xl text-sm leading-6 text-[#d4e4df] sm:text-[15px]">
-              Live marketplace health, moderation queues, and revenue across UniMart campus operations.
+              Live marketplace health, moderation queues, and revenue across UniMart operations.
             </p>
             {!loading && stats ? (
               <div className="mt-5 flex flex-wrap gap-2.5">
@@ -81,7 +81,7 @@ export function OverviewView() {
 
       {!loading && stats ? (
         <div className="grid gap-4 md:grid-cols-3">
-          <KpiCard label="Shops" value={stats.total_shops.toLocaleString()} hint="Live storefronts on campus" icon={Store} accent="green" />
+          <KpiCard label="Shops" value={stats.total_shops.toLocaleString()} hint="Live storefronts" icon={Store} accent="green" />
           <KpiCard label="Featured now" value={stats.featured_listings.toLocaleString()} hint="Boosted listings in feed" icon={Sparkles} accent="coral" />
           <KpiCard label="Paid features" value={stats.paid_features.toLocaleString()} hint="Completed listing boosts" icon={TrendingUp} accent="amber" />
         </div>

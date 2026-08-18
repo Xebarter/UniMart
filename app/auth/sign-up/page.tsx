@@ -43,7 +43,7 @@ export default function SignUpPage() {
     <main className="flex min-h-screen items-center justify-center bg-background px-5 py-12">
       <form onSubmit={submit} className="w-full max-w-md rounded-3xl border border-border bg-card p-7 shadow-sm">
         <BrandLogo showWordmark wordmarkClassName="text-xl" />
-        <h1 className="mt-5 font-display text-3xl font-bold text-foreground">Join your campus market</h1>
+        <h1 className="mt-5 font-display text-3xl font-bold text-foreground">Join the marketplace</h1>
         <p className="mt-2 text-sm text-muted-foreground">Create an account to save listings, post items, and message sellers.</p>
         <GoogleAuthButton label="Continue with Google" onError={setMessage} />
         <AuthDivider />

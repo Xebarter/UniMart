@@ -31,14 +31,14 @@ function PostPageView() {
     <div className="mx-auto w-full max-w-[1040px] px-3.5 pb-6 pt-3 sm:px-8 sm:pb-8 sm:pt-8 lg:px-10">
       <div className="min-w-0">
         <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#d1734b] sm:text-[11px]">
-          {forShop ? 'Shop / New item' : 'Sell on campus'}
+          {forShop ? 'Shop / New item' : 'Sell something'}
         </p>
         <h1 className="mt-1 font-display text-[1.4rem] font-bold tracking-[-0.045em] text-[#243e39] sm:mt-2 sm:text-[2.2rem]">
           {forShop ? 'List shop items' : 'New listing'}
         </h1>
         {forShop ? (
           <p className="mt-2 max-w-xl text-sm leading-6 text-[#748780]">
-            New posts go live on campus and appear in {myShop?.name ?? 'your shop'} right away.
+            New posts go live on UniMart and appear in {myShop?.name ?? 'your shop'} right away.
           </p>
         ) : null}
       </div>

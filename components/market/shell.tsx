@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { X } from 'lucide-react'
 import { AuthPrompt } from '@/components/auth-prompt'
 import { RestrictedAccount } from '@/components/admin/restricted-account'
+import { MarketFooter } from '@/components/market/footer'
 import { AppSidebar, navItems } from '@/components/market/sidebar'
 import { MobileTabSwipe } from '@/components/market/mobile-tab-swipe'
 import { TopBar } from '@/components/market/top-bar'
@@ -48,6 +49,7 @@ export function MarketShell({ children }: { children: React.ReactNode }) {
             ) : (
               <div className="pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
                 {children}
+                <MarketFooter />
               </div>
             )}
           </MobileTabSwipe>

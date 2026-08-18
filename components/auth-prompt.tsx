@@ -90,7 +90,7 @@ export function AuthPrompt({
             Continue to post
           </h2>
           <p className="mt-2 max-w-[20rem] text-sm leading-6 text-[#748780]">
-            One account, then your listing goes live on campus.
+            One account, then your listing goes live on UniMart.
           </p>
           <GoogleAuthButton
             label="Continue with Google"

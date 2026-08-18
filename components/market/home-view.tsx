@@ -76,14 +76,14 @@ export function HomeView() {
         category !== 'All' && category !== 'Shops' ? `in ${category}` : null,
       ].filter(Boolean).join(' · ')
     : shopsSelected
-      ? 'Storefronts from your university community'
-      : 'Listings from your university community'
+      ? 'Storefronts from people nearby'
+      : 'Listings from people nearby'
 
   return (
     <div className="mx-auto w-full max-w-[1180px] px-4 py-5 sm:px-8 sm:py-8 lg:px-10">
       <section className="relative overflow-hidden rounded-2xl bg-[#315e55] px-5 py-7 text-white sm:rounded-[26px] sm:px-10 sm:py-10">
         <div className="relative z-10 max-w-[570px]">
-          <p className="mb-3 flex items-center gap-2 text-[10px] font-semibold tracking-wide text-[#c7ddd6] sm:text-xs">YOUR CAMPUS, YOUR MARKETPLACE</p>
+          <p className="mb-3 flex items-center gap-2 text-[10px] font-semibold tracking-wide text-[#c7ddd6] sm:text-xs">YOUR MARKET, YOUR WAY</p>
           <h1 className="font-display max-w-[520px] text-[28px] font-bold leading-[1.1] tracking-[-0.04em] sm:text-[44px] sm:leading-[1.08]">Find it. Sell it.<br /><span className="text-[#f1c6aa]">Make it yours.</span></h1>
           <p className="mt-3 max-w-[440px] text-sm leading-6 text-[#d4e4df] sm:mt-4 sm:text-[15px]">The trusted marketplace for students, creators, and businesses across Uganda.</p>
           <button type="button" onClick={requestPost} className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#f3c8ad] px-4 py-3 text-sm font-bold text-[#315e55] transition hover:bg-white sm:mt-7 sm:w-auto sm:py-2.5">Start selling <ArrowUpRight size={16} /></button>
@@ -128,7 +128,7 @@ export function HomeView() {
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <h2 className="font-display text-lg font-bold tracking-[-0.025em] text-[#29463f] sm:text-xl">
-                {searching ? `Results for “${query.trim()}”` : 'Fresh on campus'}
+                {searching ? `Results for “${query.trim()}”` : 'Just listed'}
               </h2>
               <p className="mt-1 text-xs text-[#95a19d]">{resultSummary}</p>
             </div>
@@ -169,7 +169,7 @@ export function HomeView() {
           <div className="mb-4 flex items-end justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#d1734b]">Storefronts</p>
-              <h2 className="mt-1 font-display text-lg font-bold tracking-[-0.025em] text-[#29463f] sm:text-xl">Shops on campus</h2>
+              <h2 className="mt-1 font-display text-lg font-bold tracking-[-0.025em] text-[#29463f] sm:text-xl">Shops nearby</h2>
               <p className="mt-1 text-xs text-[#95a19d]">{shopsSelected ? resultSummary : 'Follow a shop to keep up with new listings'}</p>
             </div>
           </div>
@@ -204,7 +204,7 @@ export function HomeView() {
       {shopsSelected && !searching && !visibleShops.length ? (
         <section className="mt-6 sm:mt-7">
           <div className="rounded-2xl border border-dashed border-[#d9e5e0] bg-white p-8 text-center text-sm text-[#81908b] sm:p-10">
-            No shops on campus yet. Be the first to open one.
+            No shops yet. Be the first to open one.
           </div>
         </section>
       ) : null}
@@ -212,7 +212,7 @@ export function HomeView() {
         <div className="rounded-2xl border border-[#e5eae7] bg-white p-4 sm:p-6">
           <div className="mb-5 flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#d1734b]">Campus magazine</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#d1734b]">Magazine</p>
               <h2 className="mt-1 font-display text-lg font-bold tracking-[-0.025em] text-[#29463f] sm:text-xl">Stories worth sharing</h2>
             </div>
             <Link href={marketPaths.explore} className="shrink-0 pt-1 text-xs font-bold text-[#638076]">See all</Link>
@@ -230,7 +230,7 @@ export function HomeView() {
         <div className="rounded-2xl bg-[#f8eee7] p-5 sm:p-6">
           <div className="flex size-10 items-center justify-center rounded-xl bg-[#fff9f4] text-[#d1734b]"><Store size={19} /></div>
           <h2 className="mt-5 font-display text-xl font-bold tracking-[-0.025em] text-[#5b4337]">Open your shop</h2>
-          <p className="mt-2 text-sm leading-6 text-[#8e7162]">Turn your listings into a storefront campus can follow.</p>
+          <p className="mt-2 text-sm leading-6 text-[#8e7162]">Turn your listings into a storefront people can follow.</p>
           <button type="button" onClick={requestShop} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#d1734b] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#b9623e] sm:w-auto">Open a shop <Store size={15} /></button>
         </div>
       </section>

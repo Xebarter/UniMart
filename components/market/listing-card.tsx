@@ -61,7 +61,7 @@ export function ListingCard({
   row?: boolean
   compact?: boolean
 }) {
-  const seller = item.profiles?.display_name ?? 'Student'
+  const seller = item.profiles?.display_name ?? 'Seller'
   const href = marketPaths.listing(item.id)
   const saveControl = hideSave ? null : (
     <button

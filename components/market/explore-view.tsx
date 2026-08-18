@@ -14,8 +14,8 @@ export function ExploreView() {
     <div className="mx-auto max-w-[1180px] px-5 py-8 sm:px-8 lg:px-10">
       <div className="max-w-xl">
         <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#d1734b]">Explore UniMart</p>
-        <h1 className="mt-2 font-display text-4xl font-bold tracking-[-0.05em] text-[#29463f]">Good ideas travel<br /><span className="text-[#d1734b]">fast on campus.</span></h1>
-        <p className="mt-4 text-sm leading-6 text-[#71827b]">Stories, guides, and profiles from the people making student life more interesting.</p>
+        <h1 className="mt-2 font-display text-4xl font-bold tracking-[-0.05em] text-[#29463f]">Good ideas travel<br /><span className="text-[#d1734b]">from person to person.</span></h1>
+        <p className="mt-4 text-sm leading-6 text-[#71827b]">Stories, guides, and profiles from the people making life nearby more interesting.</p>
       </div>
       <div className="mt-8 grid gap-5 md:grid-cols-2">
         {articles.map((article, index) => (

@@ -91,7 +91,7 @@ export function ArticlePublishOverlay({
               </div>
             ) : null}
             {done ? (
-              <p className="mt-3 text-[11px] font-bold uppercase tracking-[0.12em] text-[#4e786a]">Ready on campus</p>
+              <p className="mt-3 text-[11px] font-bold uppercase tracking-[0.12em] text-[#4e786a]">Ready to publish</p>
             ) : null}
             {done && (exploreHref || onGoToMagazine) ? (
               <div className="mt-5 flex flex-col gap-2 sm:flex-row">

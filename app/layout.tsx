@@ -9,8 +9,8 @@ const plusJakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-pl
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'),
-  title: 'UniMart — Your campus marketplace',
-  description: 'Find it, sell it, and make it yours with UniMart, the trusted marketplace for university communities across Uganda.',
+  title: 'UniMart — Your local marketplace',
+  description: 'Find it, sell it, and make it yours with UniMart, the trusted marketplace for students, creators, and businesses across Uganda.',
   applicationName: 'UniMart',
   generator: 'UniMart',
   manifest: '/site.webmanifest',
@@ -29,15 +29,15 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
   },
   openGraph: {
-    title: 'UniMart — Your campus marketplace',
-    description: 'Find it, sell it, and make it yours with UniMart, the trusted marketplace for university communities across Uganda.',
+    title: 'UniMart — Your local marketplace',
+    description: 'Find it, sell it, and make it yours with UniMart, the trusted marketplace for students, creators, and businesses across Uganda.',
     siteName: 'UniMart',
     images: [{ url: '/web-app-manifest-512x512.png', width: 512, height: 512, alt: 'UniMart' }],
   },
   twitter: {
     card: 'summary',
-    title: 'UniMart — Your campus marketplace',
-    description: 'Find it, sell it, and make it yours with UniMart, the trusted marketplace for university communities across Uganda.',
+    title: 'UniMart — Your local marketplace',
+    description: 'Find it, sell it, and make it yours with UniMart, the trusted marketplace for students, creators, and businesses across Uganda.',
     images: ['/web-app-manifest-512x512.png'],
   },
 }

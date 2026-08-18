@@ -95,7 +95,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
           {price}
           {period ? ` ${period}` : ''}
         </div>
-        <div style={{ marginTop: 18, fontSize: 18, fontWeight: 700, color: '#c7ddd6' }}>UniMart campus marketplace</div>
+        <div style={{ marginTop: 18, fontSize: 18, fontWeight: 700, color: '#c7ddd6' }}>UniMart marketplace</div>
       </div>
     ),
     { ...size },

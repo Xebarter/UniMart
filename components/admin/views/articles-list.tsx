@@ -83,7 +83,7 @@ export function ArticlesListView() {
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1
   const to = Math.min(total, page * pageSize)
   const filtered = Boolean(q || status !== 'all')
-  const insight = filtered ? 'Matching filters' : 'Campus magazine library'
+  const insight = filtered ? 'Matching filters' : 'Magazine library'
   const [actionBusyId, setActionBusyId] = useState<string | null>(null)
   const [overlay, setOverlay] = useState({ open: false, title: '', stage: '', progress: 0, error: '' })
 
@@ -165,7 +165,7 @@ export function ArticlesListView() {
       <PageHeader
         eyebrow="Content / Articles"
         title="Magazine"
-        description="Draft campus stories, publish to Explore, and archive pieces that are no longer on-brand."
+        description="Draft stories, publish to Explore, and archive pieces that are no longer on-brand."
         actions={(
           <>
             <AdminButton href={marketPaths.explore} variant="secondary">
@@ -330,7 +330,7 @@ export function ArticlesListView() {
           <EmptyState
             icon={Newspaper}
             title="No articles match these filters"
-            description="Try another search term, clear filters, or start a new draft for the campus magazine."
+            description="Try another search term, clear filters, or start a new draft for the magazine."
             action={(
               <div className="flex flex-wrap items-center justify-center gap-2">
                 <AdminButton onClick={() => setParams({ status: 'all', q: '' })}>

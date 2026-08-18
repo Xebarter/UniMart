@@ -76,7 +76,7 @@ export function AdminSidebar({
         </Link>
         <div className="mb-5 rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2.5">
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#c7ddd6]">Operator console</p>
-          <p className="mt-1 text-[11px] leading-5 text-[#9ab5ae]">Campus marketplace administration</p>
+          <p className="mt-1 text-[11px] leading-5 text-[#9ab5ae]">Marketplace administration</p>
         </div>
         <div className="space-y-5">
           {navSections.map((section) => {
