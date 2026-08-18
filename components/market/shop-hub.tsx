@@ -164,6 +164,15 @@ export function ShopHub({
             <button type="button" onClick={onEditShop} className="inline-flex h-10 items-center rounded-xl border border-[#dfe7e3] px-3.5 text-xs font-bold text-[#526861] hover:bg-[#f6f9f8]">
               Edit
             </button>
+            {onCompose ? (
+              <button type="button" onClick={onCompose} className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#315e55] px-3.5 text-xs font-bold text-white hover:bg-[#274c44]">
+                <Plus size={14} /> List shop items
+              </button>
+            ) : (
+              <Link href={marketPaths.postShop} className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#315e55] px-3.5 text-xs font-bold text-white hover:bg-[#274c44]">
+                <Plus size={14} /> List shop items
+              </Link>
+            )}
           </>
         )}
       />
@@ -177,11 +186,11 @@ export function ShopHub({
           <p className="font-display text-lg font-bold text-[#29463f] sm:text-xl">No listings yet</p>
           {onCompose ? (
             <button type="button" onClick={onCompose} className="mt-5 inline-flex h-11 items-center gap-2 rounded-xl bg-[#315e55] px-5 text-sm font-bold text-white hover:bg-[#274c44]">
-              <Plus size={16} /> Post
+              <Plus size={16} /> List shop items
             </button>
           ) : (
-            <Link href={marketPaths.post} className="mt-5 inline-flex h-11 items-center gap-2 rounded-xl bg-[#315e55] px-5 text-sm font-bold text-white hover:bg-[#274c44]">
-              <Plus size={16} /> Post
+            <Link href={marketPaths.postShop} className="mt-5 inline-flex h-11 items-center gap-2 rounded-xl bg-[#315e55] px-5 text-sm font-bold text-white hover:bg-[#274c44]">
+              <Plus size={16} /> List shop items
             </Link>
           )}
         </div>

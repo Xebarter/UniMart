@@ -152,6 +152,7 @@ export function PostComposer({
   onSeeLive,
   openShopHref,
   shopLiveNote,
+  shopId,
   embedded = false,
 }: {
   profile: Profile
@@ -161,6 +162,7 @@ export function PostComposer({
   onSeeLive: (listing: Listing) => void
   openShopHref?: string
   shopLiveNote?: string
+  shopId?: string
   embedded?: boolean
 }) {
   const editing = Boolean(listing)
@@ -285,6 +287,7 @@ export function PostComposer({
             location: trimmedLocation,
             condition: type === 'Products' ? condition : 'good',
             rent_period: type === 'Rentals' ? rentPeriod : null,
+            ...(shopId ? { shop_id: shopId } : {}),
           })
       for (const [index, file] of files.entries()) {
         setStatus(`Adding photos ${index + 1} of ${files.length}…`)

@@ -5,6 +5,7 @@ export const marketPaths = {
   post: '/post',
   postNew: '/post/new',
   postEdit: (id: string) => `/post/${id}`,
+  postShop: '/post?tab=shop',
   shop: '/shop',
   shopPublic: (slug: string) => `/shops/${slug}`,
   profile: '/profile',

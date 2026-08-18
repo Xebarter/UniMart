@@ -27,7 +27,7 @@ export function AppSidebar({
 }) {
   const pathname = usePathname()
   const view = viewFromPath(pathname)
-  const { profile, unreadMessages, requestPost, requestShop } = useMarket()
+  const { profile, myShop, unreadMessages, requestPost, requestShop } = useMarket()
 
   const itemClass = (active: boolean) =>
     `group flex w-full items-center gap-3 rounded-2xl px-2.5 py-2 text-left font-inherit text-[13px] font-medium transition-all duration-200 ${
@@ -45,6 +45,8 @@ export function AppSidebar({
     if (intent === 'post') requestPost()
     if (intent === 'shop') requestShop()
   }
+
+  const shopActive = view === 'shop'
 
   return (
     <aside
@@ -78,17 +80,10 @@ export function AppSidebar({
         <div className="my-6 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
         <p className="mb-2.5 px-2.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#7d9a93]">Your space</p>
         <nav className="space-y-1">
-          {profile ? (
-            <Link href={marketPaths.shop} onClick={onNavigate} className={itemClass(view === 'shop')}>
-              <span className={iconWrap(view === 'shop')}><Store size={16} strokeWidth={1.9} /></span>
-              Shop
-            </Link>
-          ) : (
-            <button type="button" onClick={() => go('shop')} className={itemClass(view === 'shop')}>
-              <span className={iconWrap(view === 'shop')}><Store size={16} strokeWidth={1.9} /></span>
-              Shop
-            </button>
-          )}
+          <button type="button" onClick={() => go('shop')} className={itemClass(shopActive)}>
+            <span className={iconWrap(shopActive)}><Store size={16} strokeWidth={1.9} /></span>
+            {myShop ? 'My shop' : 'Shop'}
+          </button>
           <Link href={marketPaths.profile} onClick={onNavigate} className={itemClass(false)}>
             <span className={iconWrap(false)}><Heart size={16} strokeWidth={1.9} /></span>
             Saved listings

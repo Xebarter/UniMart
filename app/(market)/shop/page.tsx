@@ -32,7 +32,7 @@ export default function ShopPage() {
           onCancel={myShop ? () => setEditingShop(false) : undefined}
         />
       ) : (
-        <ShopHub shop={myShop} onEditShop={() => setEditingShop(true)} onCompose={() => router.push(marketPaths.post)} />
+        <ShopHub shop={myShop} onEditShop={() => setEditingShop(true)} onCompose={() => router.push(marketPaths.postShop)} />
       )}
     </div>
   )

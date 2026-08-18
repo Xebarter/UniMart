@@ -64,6 +64,12 @@ export async function POST(request: Request) {
   const rentPeriod = category === 'Rentals'
     ? (typeof body.rent_period === 'string' && isRentPeriod(body.rent_period) ? body.rent_period : 'month')
     : null
+  let shopId: string | null = null
+  if (typeof body.shop_id === 'string' && body.shop_id.trim()) {
+    const { data: shop } = await auth.supabase.from('shops').select('id').eq('id', body.shop_id).eq('owner_id', auth.user.id).maybeSingle()
+    if (!shop) return jsonError('Shop not found.')
+    shopId = shop.id
+  }
   const { data, error } = await auth.supabase
     .from('listings')
     .insert({
@@ -76,6 +82,7 @@ export async function POST(request: Request) {
       condition: typeof body.condition === 'string' ? body.condition : 'good',
       rent_period: rentPeriod,
       status: 'active',
+      ...(shopId ? { shop_id: shopId } : {}),
     })
     .select(LISTING_SELECT)
     .single()
