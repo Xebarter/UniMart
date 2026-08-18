@@ -50,7 +50,7 @@ export function ListingCard({
 }: {
   item: Listing
   saved: boolean
-  toggleSaved: (id: string) => void
+  toggleSaved: (id: string, listing?: Listing) => void
   hideSave?: boolean
   hideSeller?: boolean
   manageHref?: string
@@ -67,7 +67,11 @@ export function ListingCard({
     <button
       type="button"
       aria-label={`${saved ? 'Remove' : 'Save'} ${item.title}`}
-      onClick={() => toggleSaved(item.id)}
+      onClick={(event) => {
+        event.preventDefault()
+        event.stopPropagation()
+        void toggleSaved(item.id, item)
+      }}
       className={`flex shrink-0 items-center justify-center rounded-full border transition ${
         compact
           ? `size-7 ${saved ? 'border-[#f0c7b3] bg-[#fff5f0] text-[#d1734b]' : 'border-white/80 bg-white/95 text-[#7a8c86] shadow-[0_4px_12px_rgba(36,62,57,0.12)] hover:text-[#d1734b]'}`

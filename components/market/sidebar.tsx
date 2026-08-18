@@ -27,7 +27,7 @@ export function AppSidebar({
 }) {
   const pathname = usePathname()
   const view = viewFromPath(pathname)
-  const { profile, myShop, unreadMessages, unreadNotes, requestPost, requestShop } = useMarket()
+  const { profile, myShop, unreadMessages, unreadNotes, saved, requestPost, requestShop } = useMarket()
 
   const itemClass = (active: boolean) =>
     `group flex w-full items-center gap-3 rounded-2xl px-2.5 py-2 text-left font-inherit text-[13px] font-medium transition-all duration-200 ${
@@ -84,9 +84,10 @@ export function AppSidebar({
             <span className={iconWrap(shopActive)}><Store size={16} strokeWidth={1.9} /></span>
             <span>{myShop ? 'My shop' : 'Shop'}</span>
           </Link>
-          <Link href={marketPaths.profile} onClick={onNavigate} className={itemClass(false)}>
-            <span className={iconWrap(false)}><Heart size={16} strokeWidth={1.9} /></span>
+          <Link href={marketPaths.saved} onClick={onNavigate} className={itemClass(view === 'saved')}>
+            <span className={iconWrap(view === 'saved')}><Heart size={16} strokeWidth={1.9} /></span>
             Saved listings
+            {saved.length > 0 && <span className="ml-auto text-[11px] font-bold text-[#f3c8ad]">{saved.length}</span>}
           </Link>
           <Link href={marketPaths.messages} onClick={onNavigate} className={itemClass(view === 'messages')}>
             <span className={`${iconWrap(view === 'messages')} relative`}>

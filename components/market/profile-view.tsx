@@ -331,6 +331,11 @@ export function ProfileView() {
             <Plus size={15} /> New listing
           </button>
         )}
+        {tab === 'saved' && (
+          <Link href={marketPaths.saved} className="hidden items-center gap-2 rounded-xl border border-[#e5eae7] bg-white px-3.5 py-2.5 text-xs font-bold text-[#315e55] sm:inline-flex">
+            <Heart size={14} /> Open saved
+          </Link>
+        )}
       </div>
 
       {tab !== 'following' && (
@@ -363,6 +368,11 @@ export function ProfileView() {
                 <button type="button" onClick={requestPost} className="mt-5 inline-flex h-11 items-center gap-2 rounded-xl bg-[#315e55] px-5 text-sm font-bold text-white hover:bg-[#274c44]">
                   <Plus size={16} /> Create a listing
                 </button>
+              )}
+              {tab === 'saved' && (
+                <Link href={marketPaths.home} className="mt-5 inline-flex h-11 items-center rounded-xl bg-[#315e55] px-5 text-sm font-bold text-white hover:bg-[#274c44]">
+                  Browse listings
+                </Link>
               )}
             </div>
           )}

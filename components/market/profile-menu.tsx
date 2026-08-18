@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ChevronDown, LogIn, LogOut, Settings, UserRound } from 'lucide-react'
+import { ChevronDown, Heart, LogIn, LogOut, Settings, UserRound } from 'lucide-react'
 import { Avatar } from '@/components/market/avatar'
 import { useMarket } from '@/components/market/provider'
 import { getSafeNextPath, loginHref } from '@/lib/auth'
@@ -131,6 +131,7 @@ export function ProfileMenu() {
               </div>
               <div className="p-1.5">
                 <MenuLink href={marketPaths.profile} icon={UserRound} label="View profile" onNavigate={close} />
+                <MenuLink href={marketPaths.saved} icon={Heart} label="Saved listings" hint="Come back to them later" onNavigate={close} />
                 <MenuLink href={marketPaths.settings} icon={Settings} label="Settings" hint="Account and privacy" onNavigate={close} />
               </div>
               <div className="border-t border-[#eef3f0] p-1.5">

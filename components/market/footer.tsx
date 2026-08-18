@@ -7,6 +7,7 @@ const YEAR = new Date().getFullYear()
 
 const MARKETPLACE = [
   { label: 'Browse listings', href: marketPaths.home },
+  { label: 'Saved listings', href: marketPaths.saved },
   { label: 'Explore stories', href: marketPaths.explore },
   { label: 'Open a shop', href: marketPaths.shop },
   { label: 'Post a listing', href: marketPaths.post },

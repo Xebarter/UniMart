@@ -194,7 +194,11 @@ export function ListingDetail({ listing }: { listing: Listing }) {
                   <button
                     type="button"
                     aria-label={isSaved ? 'Remove from saved' : 'Save listing'}
-                    onClick={() => { void toggleSaved(listing.id) }}
+                    onClick={(event) => {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      void toggleSaved(listing.id, listing)
+                    }}
                     className={`flex size-10 items-center justify-center rounded-full border shadow-sm backdrop-blur-sm transition ${isSaved ? 'border-[#f0c7b3] bg-[#fff5f0] text-[#d1734b]' : 'border-white/70 bg-white/92 text-[#8b9994] hover:text-[#d1734b]'}`}
                   >
                     <Heart size={16} fill={isSaved ? 'currentColor' : 'none'} />

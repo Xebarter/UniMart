@@ -36,7 +36,7 @@ type MarketContextValue = {
   unreadMessages: number
   unreadNotes: number
   refresh: () => Promise<void>
-  toggleSaved: (id: string) => Promise<void>
+  toggleSaved: (id: string, listing?: Listing) => Promise<void>
   notify: (message: string) => void
   requestShop: () => void
   requestPost: () => void
@@ -228,22 +228,50 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     router.push(pathForAuthIntent(intent))
   }, [refresh, router])
 
-  const toggleSaved = useCallback(async (id: string) => {
+  const toggleSaved = useCallback(async (id: string, listing?: Listing) => {
     if (!profile) {
       window.location.href = loginHref(pathname || '/')
       return
     }
     const currently = saved.includes(id)
-    setSaved((current) => currently ? current.filter((item) => item !== id) : [...current, id])
+    const known = listing
+      || listings.find((item) => item.id === id)
+      || myListings.find((item) => item.id === id)
+      || savedListings.find((item) => item.id === id)
+
+    setSaved((current) => (currently ? current.filter((item) => item !== id) : current.includes(id) ? current : [...current, id]))
+    setSavedListings((current) => {
+      if (currently) return current.filter((item) => item.id !== id)
+      if (!known || current.some((item) => item.id === id)) return current
+      return [known, ...current]
+    })
+
     try {
-      if (currently) await api.removeFavorite(id)
-      else await api.saveFavorite(id)
-      notify(currently ? 'Removed from saved listings' : 'Saved for later')
+      if (currently) {
+        await api.removeFavorite(id)
+        notify('Removed from saved listings')
+        return
+      }
+      await api.saveFavorite(id)
+      if (!known) {
+        const fresh = await api.listing(id).catch(() => null)
+        if (fresh?.data) {
+          setSavedListings((current) => (current.some((item) => item.id === id) ? current : [fresh.data, ...current]))
+        }
+      }
+      notify('Saved for later')
     } catch (err) {
-      setSaved((current) => currently ? [...current, id] : current.filter((item) => item !== id))
+      setSaved((current) => (currently ? (current.includes(id) ? current : [...current, id]) : current.filter((item) => item !== id)))
+      setSavedListings((current) => {
+        if (currently) {
+          if (!known || current.some((item) => item.id === id)) return current
+          return [known, ...current]
+        }
+        return current.filter((item) => item.id !== id)
+      })
       notify(err instanceof Error ? err.message : 'Unable to update saved listings')
     }
-  }, [notify, pathname, profile, saved])
+  }, [listings, myListings, notify, pathname, profile, saved, savedListings])
 
   const markNotificationsRead = useCallback(async () => {
     const unread = notifications.filter((item) => !item.read_at).length

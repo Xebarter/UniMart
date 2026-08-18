@@ -219,7 +219,7 @@ const FAQ_SECTIONS: FaqSection[] = [
       },
       {
         question: 'Where can I find my saved listings?',
-        answer: ['Your saved listings are available from your Profile under your Favorites/Saved section.'],
+        answer: ['Open Saved listings from the sidebar, your profile menu, or Profile → Saved. That is your collection.'],
       },
       {
         question: 'Does the seller know when I save their listing?',
