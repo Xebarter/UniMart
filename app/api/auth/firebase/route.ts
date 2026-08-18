@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { isUploadedAvatar, jsonError, jsonOk, parseJson } from '@/lib/api/http'
+import { phoneBridgeEmail, phoneDisplayName } from '@/lib/phone'
 
 export const runtime = 'nodejs'
 
@@ -9,6 +10,7 @@ type FirebaseLookup = {
   users?: {
     localId: string
     email?: string
+    phoneNumber?: string
     displayName?: string
     photoUrl?: string
     photoURL?: string
@@ -81,32 +83,46 @@ export async function POST(request: Request) {
     return jsonError(err instanceof Error ? err.message : 'Invalid Firebase session.', 401)
   }
 
-  const email = firebaseUser.email?.trim().toLowerCase()
-  if (!email) return jsonError('This Google account does not have an email address.')
+  const phone = firebaseUser.phoneNumber?.trim() || ''
+  const email = firebaseUser.email?.trim().toLowerCase() || (phone ? phoneBridgeEmail(phone) : '')
+  if (!email) return jsonError('This sign-in method did not provide an identity we can use.')
 
   let admin
   try {
     admin = createAdminClient()
   } catch (err) {
-    console.error('[unimart:google-auth] admin', err instanceof Error ? err.message : err)
+    console.error('[unimart:firebase-auth] admin', err instanceof Error ? err.message : err)
     return jsonError('Server auth is not configured.', 503)
   }
 
-  const displayName = firebaseUser.displayName || email.split('@')[0]
+  const displayName = firebaseUser.displayName || (phone ? phoneDisplayName(phone) : email.split('@')[0])
   const photoUrl = firebaseUser.photoUrl || firebaseUser.photoURL || null
+  const metadata = {
+    display_name: displayName,
+    avatar_url: photoUrl,
+    picture: photoUrl,
+    firebase_uid: firebaseUser.localId,
+    ...(phone ? { phone, auth_provider: 'phone' } : { auth_provider: 'google' }),
+  }
 
-  const { error: createError } = await admin.auth.admin.createUser({
+  const createPayload = {
     email,
-    email_confirm: true,
-    user_metadata: {
-      display_name: displayName,
-      avatar_url: photoUrl,
-      picture: photoUrl,
-      firebase_uid: firebaseUser.localId,
-    },
-  })
+    email_confirm: true as const,
+    user_metadata: metadata,
+    ...(phone ? { phone, phone_confirm: true as const } : {}),
+  }
+
+  let { error: createError } = await admin.auth.admin.createUser(createPayload)
+  if (createError && phone && /phone/i.test(createError.message ?? '')) {
+    const retry = await admin.auth.admin.createUser({
+      email,
+      email_confirm: true,
+      user_metadata: metadata,
+    })
+    createError = retry.error
+  }
   if (createError && !/already been registered|already exists/i.test(createError.message)) {
-    console.error('[unimart:google-auth] createUser', createError.message)
+    console.error('[unimart:firebase-auth] createUser', createError.message)
     return jsonError('Unable to create your UniMart account.', 400)
   }
 
@@ -116,7 +132,7 @@ export async function POST(request: Request) {
   })
   const tokenHash = link?.properties?.hashed_token
   if (linkError || !tokenHash) {
-    console.error('[unimart:google-auth] generateLink', linkError?.message)
+    console.error('[unimart:firebase-auth] generateLink', linkError?.message)
     return jsonError('Unable to start your UniMart session.', 400)
   }
 
@@ -126,8 +142,8 @@ export async function POST(request: Request) {
     token_hash: tokenHash,
   })
   if (verifyError) {
-    console.error('[unimart:google-auth] verifyOtp', verifyError.message)
-    return jsonError('Unable to complete Google sign-in.', 400)
+    console.error('[unimart:firebase-auth] verifyOtp', verifyError.message)
+    return jsonError('Unable to complete sign-in.', 400)
   }
 
   const userId = authData.user?.id

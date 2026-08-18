@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import { AuthDivider, GoogleAuthButton } from '@/components/google-auth-button'
 import { PasswordInput } from '@/components/password-input'
+import { PhoneAuthForm } from '@/components/phone-auth-form'
 import { signInWithEmailPassword } from '@/lib/auth-client'
 
 export function AuthPrompt({
@@ -19,6 +20,7 @@ export function AuthPrompt({
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [emailOpen, setEmailOpen] = useState(false)
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
 
@@ -26,6 +28,7 @@ export function AuthPrompt({
     if (!open) return
     setMessage('')
     setLoading(false)
+    setEmailOpen(false)
     const previous = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     const onKey = (event: KeyboardEvent) => {
@@ -70,10 +73,10 @@ export function AuthPrompt({
         role="dialog"
         aria-modal="true"
         aria-labelledby="auth-prompt-title"
-        className="auth-sheet relative w-full overflow-hidden rounded-t-[28px] bg-white shadow-[0_-18px_80px_rgba(12,28,25,0.28)] sm:max-w-[420px] sm:rounded-[28px] sm:shadow-[0_28px_80px_rgba(12,28,25,0.28)]"
+        className="auth-sheet relative w-full overflow-x-clip overflow-y-auto rounded-t-[28px] bg-white shadow-[0_-18px_80px_rgba(12,28,25,0.28)] sm:max-w-[420px] sm:rounded-[28px] sm:shadow-[0_28px_80px_rgba(12,28,25,0.28)]"
         style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom, 0px))' }}
       >
-        <div className="relative overflow-hidden px-6 pb-6 pt-5 sm:px-7 sm:pt-7">
+        <div className="relative px-6 pb-6 pt-5 sm:px-7 sm:pt-7">
           <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[#e4ebe8] sm:hidden" />
           <div className="pointer-events-none absolute -right-10 -top-16 h-40 w-40 rounded-full bg-[#f3c8ad]/35 blur-2xl" />
           <div className="pointer-events-none absolute -left-8 top-10 h-28 w-28 rounded-full bg-[#315e55]/10 blur-2xl" />
@@ -90,39 +93,53 @@ export function AuthPrompt({
             Continue to post
           </h2>
           <p className="mt-2 max-w-[20rem] text-sm leading-6 text-[#748780]">
-            One account, then your listing goes live on UniMart.
+            Sign in with your phone, then your listing goes live.
           </p>
+          <div className="mt-6">
+            <PhoneAuthForm onError={setMessage} onSuccess={() => finish()} sendLabel="Send code" />
+          </div>
+          {message && !emailOpen ? <p role="alert" className="mt-4 text-sm text-[#c45b38]">{message}</p> : null}
+          <AuthDivider />
           <GoogleAuthButton
             label="Continue with Google"
-            className="mt-6"
+            className="mt-0"
             onError={setMessage}
             onSuccess={() => finish()}
           />
-          <AuthDivider />
-          <form onSubmit={submit} className="mt-5 space-y-3.5">
-            <label className="block text-[13px] font-semibold text-[#2e4942]">
-              Email
-              <input
-                required
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className="mt-1.5 h-11 w-full rounded-xl border border-[#e4e9e6] bg-[#fbfcfb] px-3 text-sm outline-none focus:border-[#7fa59a] focus:ring-2 focus:ring-[#dcebe6]"
-              />
-            </label>
-            <label className="block text-[13px] font-semibold text-[#2e4942]">
-              Password
-              <PasswordInput required value={password} onChange={setPassword} autoComplete="current-password" />
-            </label>
-            {message && <p role="alert" className="text-sm text-[#c45b38]">{message}</p>}
+          {emailOpen ? (
+            <form onSubmit={submit} className="mt-5 space-y-3.5">
+              <label className="block text-[13px] font-semibold text-[#2e4942]">
+                Email
+                <input
+                  required
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  className="mt-1.5 h-11 w-full rounded-xl border border-[#e4e9e6] bg-[#fbfcfb] px-3 text-sm outline-none focus:border-[#7fa59a] focus:ring-2 focus:ring-[#dcebe6]"
+                />
+              </label>
+              <label className="block text-[13px] font-semibold text-[#2e4942]">
+                Password
+                <PasswordInput required value={password} onChange={setPassword} autoComplete="current-password" />
+              </label>
+              {message && <p role="alert" className="text-sm text-[#c45b38]">{message}</p>}
+              <button
+                disabled={loading}
+                className="h-11 w-full rounded-xl bg-[#315e55] text-sm font-bold text-white transition hover:bg-[#274c44] disabled:opacity-60"
+              >
+                {loading ? 'Continuing…' : 'Continue with email'}
+              </button>
+            </form>
+          ) : (
             <button
-              disabled={loading}
-              className="h-11 w-full rounded-xl bg-[#315e55] text-sm font-bold text-white transition hover:bg-[#274c44] disabled:opacity-60"
+              type="button"
+              onClick={() => { setEmailOpen(true); setMessage('') }}
+              className="mt-4 w-full text-center text-[13px] font-bold text-[#315e55]"
             >
-              {loading ? 'Continuing…' : 'Continue'}
+              Use email and password
             </button>
-          </form>
+          )}
         </div>
       </div>
     </div>

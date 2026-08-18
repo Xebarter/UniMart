@@ -29,7 +29,7 @@ export function PasswordInput({
         value={value}
         autoComplete={autoComplete}
         onChange={(event) => onChange(event.target.value)}
-        className={className ?? 'h-11 w-full rounded-xl border border-input bg-background px-3 pr-11 outline-none focus:ring-2 focus:ring-ring'}
+        className={`${className ?? 'h-11 w-full rounded-xl border border-input bg-background px-3 outline-none focus:ring-2 focus:ring-ring'} pr-11`}
       />
       <button
         type="button"

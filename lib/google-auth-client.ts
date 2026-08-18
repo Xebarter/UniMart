@@ -42,7 +42,7 @@ export async function completeGoogleSignIn(user: Pick<User, 'getIdToken'>) {
     body: JSON.stringify({ idToken }),
   })
   const payload = (await response.json().catch(() => ({}))) as { error?: string }
-  if (!response.ok) throw new Error(payload.error || 'Unable to complete Google sign-in.')
+  if (!response.ok) throw new Error(payload.error || 'Unable to complete sign-in.')
 }
 
 export function storeGoogleAuthNext(next?: string | null) {

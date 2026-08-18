@@ -87,7 +87,8 @@ button { cursor: pointer; }
 @media (max-width: 1023px) {
   body { padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
 }
-body:has([data-admin-shell]) { padding-bottom: 0; }
+body:has([data-admin-shell]),
+body:has([data-auth-shell]) { padding-bottom: 0; }
 
 @keyframes unimart-drawer-in {
   from { transform: translateX(-18px); opacity: 0.72; }

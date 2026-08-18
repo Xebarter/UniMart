@@ -60,7 +60,7 @@ export function GoogleAuthButton({
       type="button"
       onClick={() => { void continueWithGoogle() }}
       disabled={loading}
-      className={`inline-flex h-11 w-full items-center justify-center gap-2.5 rounded-xl border border-border bg-white text-sm font-bold text-foreground transition hover:bg-muted disabled:opacity-60 ${className}`}
+      className={`inline-flex h-12 w-full items-center justify-center gap-2.5 rounded-2xl border border-[#e5eae7] bg-white text-sm font-bold text-[#243e39] transition hover:bg-[#f7faf9] disabled:opacity-60 ${className}`}
     >
       <GoogleMark />
       {loading ? 'Connecting…' : label}
@@ -70,10 +70,10 @@ export function GoogleAuthButton({
 
 export function AuthDivider() {
   return (
-    <div className="mt-6 flex items-center gap-3 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-      <span className="h-px flex-1 bg-border" />
+    <div className="mt-6 mb-4 flex items-center gap-3 text-[11px] font-bold uppercase tracking-[0.14em] text-[#8b9994]">
+      <span className="h-px flex-1 bg-[#e5eae7]" />
       or
-      <span className="h-px flex-1 bg-border" />
+      <span className="h-px flex-1 bg-[#e5eae7]" />
     </div>
   )
 }
