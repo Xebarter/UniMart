@@ -80,10 +80,10 @@ export function AppSidebar({
         <div className="my-6 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
         <p className="mb-2.5 px-2.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#7d9a93]">Your space</p>
         <nav className="space-y-1">
-          <button type="button" onClick={() => go('shop')} className={itemClass(shopActive)}>
+          <Link href={marketPaths.shop} onClick={onNavigate} className={itemClass(shopActive)}>
             <span className={iconWrap(shopActive)}><Store size={16} strokeWidth={1.9} /></span>
-            {myShop ? 'My shop' : 'Shop'}
-          </button>
+            <span>{myShop ? 'My shop' : 'Shop'}</span>
+          </Link>
           <Link href={marketPaths.profile} onClick={onNavigate} className={itemClass(false)}>
             <span className={iconWrap(false)}><Heart size={16} strokeWidth={1.9} /></span>
             Saved listings
