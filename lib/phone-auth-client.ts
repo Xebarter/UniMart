@@ -6,10 +6,12 @@ import { getFirebaseAuth } from '@/lib/firebase'
 import { isValidE164 } from '@/lib/phone'
 
 export const PHONE_SEND_BUTTON_ID = 'unimart-sign-in-button'
+export const PHONE_RECAPTCHA_ID = 'unimart-phone-recaptcha'
 
-let verifier: RecaptchaVerifier | null = null
 let confirmation: ConfirmationResult | null = null
+let verifier: RecaptchaVerifier | null = null
 let widgetId: number | null = null
+let host: HTMLElement | null = null
 
 function authErrorCode(error: unknown) {
   if (typeof error === 'object' && error && 'code' in error) return String((error as { code: string }).code)
@@ -19,17 +21,6 @@ function authErrorCode(error: unknown) {
 function authErrorText(error: unknown) {
   if (error instanceof Error && error.message) return error.message
   return ''
-}
-
-function isPhoneCaptchaError(error: unknown) {
-  const code = authErrorCode(error)
-  const text = authErrorText(error)
-  return (
-    code === 'auth/captcha-check-failed' ||
-    code === 'auth/invalid-app-credential' ||
-    code === 'auth/missing-recaptcha-token' ||
-    /INVALID_APP_CREDENTIAL|CAPTCHA_CHECK_FAILED|MISSING_CLIENT_IDENTIFIER/i.test(text)
-  )
 }
 
 export function phoneAuthMessage(error: unknown) {
@@ -44,7 +35,10 @@ export function phoneAuthMessage(error: unknown) {
   if (code === 'auth/code-expired') return 'That code expired. Request a new one.'
   if (code === 'auth/invalid-verification-code') return 'That code is incorrect. Try again.'
   if (code === 'auth/session-expired') return 'This sign-in timed out. Request a new code.'
-  if (isPhoneCaptchaError(error)) {
+  if (code === 'auth/captcha-check-failed' || code === 'auth/invalid-app-credential' || code === 'auth/missing-app-credential') {
+    if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+      return 'Firebase blocks live SMS from localhost. Open http://127.0.0.1:3000 and add 127.0.0.1 under Authentication → Settings → Authorized domains, or use a test phone number in Firebase.'
+    }
     return 'Unable to verify this request. Refresh the page and try again.'
   }
   if (code === 'auth/operation-not-allowed') {
@@ -61,7 +55,7 @@ function grecaptchaApi() {
   return (window as unknown as { grecaptcha?: { reset: (id?: number) => void } }).grecaptcha
 }
 
-export function resetPhoneVerifier() {
+function resetVerifier() {
   if (widgetId == null) return
   try {
     grecaptchaApi()?.reset(widgetId)
@@ -70,8 +64,7 @@ export function resetPhoneVerifier() {
   }
 }
 
-export function clearPhoneAuth() {
-  confirmation = null
+function clearVerifier() {
   try {
     verifier?.clear()
   } catch {
@@ -79,36 +72,42 @@ export function clearPhoneAuth() {
   }
   verifier = null
   widgetId = null
+  host = null
 }
 
-export async function ensurePhoneVerifier(anchor: HTMLElement) {
-  if (verifier) {
-    widgetId = await verifier.render()
-    return verifier
-  }
+export function clearPhoneAuth() {
+  confirmation = null
+  clearVerifier()
+}
+
+export async function ensurePhoneVerifier() {
+  const el = document.getElementById(PHONE_RECAPTCHA_ID)
+  if (!el) throw new Error('Phone verification is still loading. Try again.')
+  if (verifier && host === el) return verifier
+
+  clearVerifier()
   const auth = getFirebaseAuth()
   auth.useDeviceLanguage()
-  verifier = new RecaptchaVerifier(auth, anchor, {
+  verifier = new RecaptchaVerifier(auth, el, {
     size: 'invisible',
     callback: () => undefined,
-    'expired-callback': () => resetPhoneVerifier(),
+    'expired-callback': () => resetVerifier(),
   })
+  host = el
   widgetId = await verifier.render()
   return verifier
 }
 
 export async function sendPhoneCode(e164: string) {
   if (!isValidE164(e164)) throw new Error('Enter a valid phone number, including country code.')
-  const anchor = document.getElementById(PHONE_SEND_BUTTON_ID)
-  if (!anchor) throw new Error('Phone verification is still loading. Try again.')
-  const appVerifier = await ensurePhoneVerifier(anchor)
+  const appVerifier = await ensurePhoneVerifier()
   const auth = getFirebaseAuth()
   try {
     confirmation = await signInWithPhoneNumber(auth, e164, appVerifier)
-    resetPhoneVerifier()
+    resetVerifier()
   } catch (error) {
     confirmation = null
-    resetPhoneVerifier()
+    resetVerifier()
     throw error
   }
 }

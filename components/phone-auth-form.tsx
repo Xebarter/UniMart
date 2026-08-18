@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { ArrowLeft, ChevronDown, Loader2 } from 'lucide-react'
 import { getSafeNextPath } from '@/lib/auth'
 import {
+  PHONE_RECAPTCHA_ID,
   PHONE_SEND_BUTTON_ID,
   clearPhoneAuth,
   confirmPhoneCode,
@@ -29,7 +30,6 @@ export function PhoneAuthForm({
   onSuccess?: () => void | Promise<void>
   sendLabel?: string
 }) {
-  const sendBtnRef = useRef<HTMLButtonElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const onErrorRef = useRef(onError)
   onErrorRef.current = onError
@@ -54,9 +54,7 @@ export function PhoneAuthForm({
   }, [cooldown])
 
   useEffect(() => {
-    const button = sendBtnRef.current
-    if (!button) return
-    void ensurePhoneVerifier(button).catch((error) => onErrorRef.current(phoneAuthMessage(error)))
+    void ensurePhoneVerifier().catch((error) => onErrorRef.current(phoneAuthMessage(error)))
     return () => clearPhoneAuth()
   }, [])
 
@@ -107,6 +105,7 @@ export function PhoneAuthForm({
 
   return (
     <div className="relative">
+      <div id={PHONE_RECAPTCHA_ID} />
       <form onSubmit={(event) => void send(event)} className={step === 'phone' ? 'space-y-4' : undefined}>
         {step === 'phone' ? (
           <div>
@@ -152,19 +151,18 @@ export function PhoneAuthForm({
         ) : null}
         <button
           id={PHONE_SEND_BUTTON_ID}
-          ref={sendBtnRef}
           type="submit"
           tabIndex={step === 'phone' ? 0 : -1}
           aria-hidden={step !== 'phone'}
           disabled={loading || nationalDigits(national).length < 7}
           className={
             step === 'phone'
-              ? 'relative inline-flex h-12 w-full items-center justify-center rounded-2xl bg-[#315e55] text-sm font-bold text-white transition hover:bg-[#274c44] disabled:opacity-50'
-              : 'pointer-events-none absolute left-0 top-0 h-px w-px opacity-0'
+              ? 'relative inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#315e55] text-sm font-bold text-white transition hover:bg-[#274c44] disabled:opacity-50'
+              : 'pointer-events-none absolute left-0 top-0 h-12 w-full opacity-0'
           }
         >
-          <Loader2 size={16} className={`absolute animate-spin ${loading ? 'opacity-100' : 'opacity-0'}`} />
-          <span className={loading ? 'opacity-0' : ''}>{loading ? 'Sending code…' : sendLabel}</span>
+          {loading && step === 'phone' ? <Loader2 size={16} className="animate-spin" /> : null}
+          {step === 'phone' ? (loading ? 'Sending code…' : sendLabel) : sendLabel}
         </button>
       </form>
       {step === 'code' ? (
@@ -200,10 +198,10 @@ export function PhoneAuthForm({
           <button
             type="submit"
             disabled={loading || code.length !== 6}
-            className="relative inline-flex h-12 w-full items-center justify-center rounded-2xl bg-[#315e55] text-sm font-bold text-white transition hover:bg-[#274c44] disabled:opacity-50"
+            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#315e55] text-sm font-bold text-white transition hover:bg-[#274c44] disabled:opacity-50"
           >
-            <Loader2 size={16} className={`absolute animate-spin ${loading ? 'opacity-100' : 'opacity-0'}`} />
-            <span className={loading ? 'opacity-0' : ''}>Verify and continue</span>
+            {loading ? <Loader2 size={16} className="animate-spin" /> : null}
+            {loading ? 'Verifying…' : 'Verify and continue'}
           </button>
           <button
             type="button"
