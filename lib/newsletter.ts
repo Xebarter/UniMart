@@ -4,9 +4,11 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import {
   NEWSLETTER_SOURCES,
   NEWSLETTER_STATUSES,
+  UNSUBSCRIBE_REASONS,
   type NewsletterSource,
   type NewsletterStatus,
   type NewsletterSubscriber,
+  type UnsubscribeReason,
 } from '@/lib/types'
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -72,6 +74,22 @@ export function publicNewsletter(row: NewsletterSubscriber) {
     email: maskEmail(row.email),
     subscribed: row.status === 'subscribed',
   }
+}
+
+export function isUnsubscribeReason(value: unknown): value is UnsubscribeReason {
+  return typeof value === 'string' && UNSUBSCRIBE_REASONS.some((item) => item.value === value)
+}
+
+export function unsubscribeReasonLabel(value: UnsubscribeReason) {
+  return UNSUBSCRIBE_REASONS.find((item) => item.value === value)?.label ?? value
+}
+
+export function appendUnsubscribeNote(existing: string | null | undefined, reason?: UnsubscribeReason | null) {
+  const stamp = new Date().toISOString().slice(0, 10)
+  const line = reason
+    ? `[${stamp}] Unsubscribed via /unsubscribe — ${unsubscribeReasonLabel(reason)}`
+    : `[${stamp}] Unsubscribed via /unsubscribe`
+  return [existing?.trim(), line].filter(Boolean).join('\n').slice(0, 2000)
 }
 
 export function subscribeFields(input: {

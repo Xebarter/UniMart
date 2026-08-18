@@ -238,6 +238,15 @@ export type NewsletterStatus = (typeof NEWSLETTER_STATUSES)[number]
 export const NEWSLETTER_SOURCES = ['footer', 'settings', 'admin'] as const
 export type NewsletterSource = (typeof NEWSLETTER_SOURCES)[number]
 
+export const UNSUBSCRIBE_REASONS = [
+  { value: 'too-many', label: 'Too many emails' },
+  { value: 'not-relevant', label: 'The content is not relevant' },
+  { value: 'never-signed-up', label: 'I never signed up' },
+  { value: 'temporary', label: 'I only wanted a one-time update' },
+  { value: 'other', label: 'Something else' },
+] as const
+export type UnsubscribeReason = (typeof UNSUBSCRIBE_REASONS)[number]['value']
+
 export type NewsletterSubscriber = {
   id: string
   email: string

@@ -60,7 +60,7 @@ export function MarketFooter() {
       <div className="pointer-events-none absolute -right-20 -top-28 size-80 rounded-[44%] border-[28px] border-[#47766b]/15 opacity-60" />
 
       <div className="relative mx-auto max-w-[1240px] px-5 pb-10 pt-14 sm:px-8 lg:px-10">
-        <div className="grid gap-12 lg:grid-cols-[1.3fr_1fr_1fr_1fr_1fr] lg:gap-8">
+        <div className="grid gap-10 lg:grid-cols-[1.3fr_1fr_1fr_1fr_1fr] lg:gap-8">
           <div className="max-w-xs">
             <Link href={marketPaths.home} className="inline-flex items-center gap-2.5">
               <BrandLogo size={38} />
@@ -81,10 +81,12 @@ export function MarketFooter() {
             </div>
           </div>
 
-          <FooterCol title="Marketplace" links={MARKETPLACE} />
-          <FooterCol title="Company" links={COMPANY} />
-          <FooterCol title="Support" links={SUPPORT} />
-          <FooterCol title="Legal" links={LEGAL} />
+          <div className="grid grid-cols-2 gap-x-6 gap-y-8 lg:contents">
+            <FooterCol title="Marketplace" links={MARKETPLACE} />
+            <FooterCol title="Company" links={COMPANY} />
+            <FooterCol title="Support" links={SUPPORT} />
+            <FooterCol title="Legal" links={LEGAL} />
+          </div>
         </div>
 
         <div className="my-10 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />

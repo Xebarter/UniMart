@@ -121,10 +121,10 @@ export const api = {
     request<{ subscribed: boolean; status: string }>('/api/subscribe/me', { method: 'PATCH', body: JSON.stringify(body) }),
   unsubscribePreview: (token: string) =>
     request<{ status: string; email: string; subscribed: boolean }>(`/api/subscribe/unsubscribe?token=${encodeURIComponent(token)}`),
-  unsubscribe: (token: string) =>
-    request<{ ok: boolean; status: string }>('/api/subscribe/unsubscribe', {
+  unsubscribe: (body: { token?: string; email?: string; reason?: string; company_website?: string }) =>
+    request<{ ok: boolean; status: string; email?: string; already?: boolean }>('/api/subscribe/unsubscribe', {
       method: 'POST',
-      body: JSON.stringify({ token }),
+      body: JSON.stringify(body),
     }),
   adminSubscribers: (params?: string) =>
     request<Paginated<NewsletterSubscriber> & { counts: { subscribed: number; unsubscribed: number; pending: number } }>(
