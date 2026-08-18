@@ -4,6 +4,7 @@ import {
   fetchListing,
   listingOpenGraphImageUrl,
   listingShareDescription,
+  listingShareImage,
   listingShareTitle,
   listingShareUrl,
 } from '@/lib/listing-share'
@@ -26,7 +27,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const title = listingShareTitle(listing)
   const description = listingShareDescription(listing)
   const url = listingShareUrl(id)
-  const ogImage = listingOpenGraphImageUrl(id)
+  const photo = listingShareImage(listing)
+  const generatedOg = listingOpenGraphImageUrl(id)
+  const images = [
+    { url: generatedOg, width: 1200, height: 630, alt: listing.title, type: 'image/png' as const },
+    ...(photo ? [{ url: photo, width: 1200, height: 630, alt: listing.title }] : []),
+  ]
 
   return {
     title,
@@ -39,21 +45,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       siteName: 'UniMart',
       type: 'website',
       locale: 'en_UG',
-      images: [
-        {
-          url: ogImage,
-          width: 1200,
-          height: 630,
-          alt: listing.title,
-          type: 'image/png',
-        },
-      ],
+      images,
     },
     twitter: {
       card: 'summary_large_image',
       title: listing.title,
       description,
-      images: [ogImage],
+      images: photo ? [generatedOg, photo] : [generatedOg],
     },
   }
 }
