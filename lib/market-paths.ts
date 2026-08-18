@@ -12,6 +12,7 @@ export const marketPaths = {
   settings: '/settings',
   messages: '/messages',
   conversation: (id: string) => `/messages/${id}`,
+  messageAlerts: '/messages?tab=alerts',
   listing: (id: string) => `/listings/${id}`,
 } as const
 

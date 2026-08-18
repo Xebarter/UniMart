@@ -252,16 +252,35 @@ export type AdminSettingsSnapshot = {
   }
 }
 
+export const NOTIFICATION_TYPES = ['message', 'sale', 'favorite', 'follow', 'report_update', 'account_notice'] as const
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number]
+
 export type Notification = {
   id: string
   user_id: string
-  type: string
+  type: NotificationType
   title: string
   body: string
   listing_id: string | null
   conversation_id: string | null
+  actor_id?: string | null
+  path?: string | null
+  metadata?: Record<string, unknown>
   read_at: string | null
   created_at: string
+}
+
+export type NotificationPreferences = {
+  user_id?: string
+  push_enabled: boolean
+  push_messages: boolean
+  push_sales: boolean
+  push_favorites: boolean
+  push_follows: boolean
+  push_report_updates: boolean
+  push_account_notices: boolean
+  created_at?: string
+  updated_at?: string
 }
 
 export type AdminStats = {

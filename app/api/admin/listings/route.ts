@@ -1,6 +1,7 @@
 import { writeAudit } from '@/lib/admin/audit'
 import { ilikeOr, parseListQuery } from '@/lib/admin/query'
 import { dbError, jsonError, jsonOk, parseJson, requireAdmin } from '@/lib/api/http'
+import { createNotification } from '@/lib/notifications'
 
 const SELECT = '*, profiles:owner_id(id, display_name, university, campus, avatar_url, verified), listing_media(*)'
 
@@ -40,5 +41,17 @@ export async function PATCH(request: Request) {
   const { data, error } = await auth.supabase.from('listings').update(updates).eq('id', body.id).select().single()
   if (error) return dbError(error, 'Unable to update listing.', 400)
   await writeAudit(auth.supabase, { actorId: auth.user.id, action: 'listing.moderate', entityType: 'listing', entityId: body.id, metadata: updates })
+  if (typeof updates.status === 'string') {
+    await createNotification(auth.supabase, {
+      user_id: data.owner_id,
+      type: 'account_notice',
+      title: 'Your listing status changed',
+      body: `${data.title} is now ${updates.status}.`,
+      listing_id: data.id,
+      actor_id: auth.user.id,
+      path: `/listings/${data.id}`,
+      metadata: { status: updates.status, listing_title: data.title },
+    }).catch((notificationError) => console.error('[unimart:listings:notify]', notificationError))
+  }
   return jsonOk({ data })
 }

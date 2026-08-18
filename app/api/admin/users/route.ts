@@ -1,6 +1,7 @@
 import { writeAudit } from '@/lib/admin/audit'
 import { ilikeOr, parseListQuery } from '@/lib/admin/query'
 import { dbError, jsonError, jsonOk, parseJson, requireAdmin, requireFullAdmin } from '@/lib/api/http'
+import { createNotification } from '@/lib/notifications'
 
 export async function GET(request: Request) {
   const auth = await requireAdmin()
@@ -49,6 +50,15 @@ export async function PATCH(request: Request) {
       return dbError(error, 'Unable to update user role.', 400)
     }
     await writeAudit(auth.supabase, { actorId: auth.user.id, action: 'user.role', entityType: 'user', entityId: body.id, metadata: { role: body.role } })
+    await createNotification(auth.supabase, {
+      user_id: body.id,
+      type: 'account_notice',
+      title: 'Your UniMart role changed',
+      body: `Your account role is now ${body.role}.`,
+      actor_id: auth.user.id,
+      path: '/settings',
+      metadata: { role: body.role },
+    }).catch((notificationError) => console.error('[unimart:users:role-notify]', notificationError))
     return jsonOk({ data })
   }
 
@@ -68,6 +78,15 @@ export async function PATCH(request: Request) {
       return dbError(error, 'Unable to update account status.', 400)
     }
     await writeAudit(auth.supabase, { actorId: auth.user.id, action: 'user.status', entityType: 'user', entityId: body.id, metadata: { account_status: body.account_status } })
+    await createNotification(auth.supabase, {
+      user_id: body.id,
+      type: 'account_notice',
+      title: 'Your account status changed',
+      body: `Your account is now ${body.account_status}.`,
+      actor_id: auth.user.id,
+      path: '/settings',
+      metadata: { account_status: body.account_status },
+    }).catch((notificationError) => console.error('[unimart:users:status-notify]', notificationError))
     return jsonOk({ data })
   }
 
@@ -77,5 +96,18 @@ export async function PATCH(request: Request) {
   const { data, error } = await auth.supabase.from('profiles').update(updates).eq('id', body.id).select().single()
   if (error) return dbError(error, 'Unable to update user.', 400)
   await writeAudit(auth.supabase, { actorId: auth.user.id, action: 'user.verify', entityType: 'user', entityId: body.id, metadata: updates })
+  if (typeof body.verified === 'boolean') {
+    await createNotification(auth.supabase, {
+      user_id: body.id,
+      type: 'account_notice',
+      title: body.verified ? 'Your profile was verified' : 'Your verification badge was removed',
+      body: body.verified
+        ? 'Your account now shows as verified on UniMart.'
+        : 'Your account no longer shows a verified badge.',
+      actor_id: auth.user.id,
+      path: '/settings',
+      metadata: { verified: body.verified },
+    }).catch((notificationError) => console.error('[unimart:users:verify-notify]', notificationError))
+  }
   return jsonOk({ data })
 }

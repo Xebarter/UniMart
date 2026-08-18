@@ -1,6 +1,7 @@
 import { writeAudit } from '@/lib/admin/audit'
 import { ilikeOr, parseListQuery } from '@/lib/admin/query'
 import { dbError, jsonError, jsonOk, parseJson, requireAdmin } from '@/lib/api/http'
+import { createNotification } from '@/lib/notifications'
 
 const SELECT = '*, profiles:owner_id(id, display_name, university, campus, avatar_url, verified)'
 
@@ -38,5 +39,14 @@ export async function PATCH(request: Request) {
     await auth.supabase.from('listings').update({ status: 'archived' }).eq('shop_id', body.id).eq('status', 'active')
   }
   await writeAudit(auth.supabase, { actorId: auth.user.id, action: 'shop.status', entityType: 'shop', entityId: body.id, metadata: { status: body.status } })
+  await createNotification(auth.supabase, {
+    user_id: data.owner_id,
+    type: 'account_notice',
+    title: body.status === 'active' ? 'Your shop is live again' : 'Your shop was disabled',
+    body: `${data.name} is now ${body.status}.`,
+    actor_id: auth.user.id,
+    path: data.slug ? `/shops/${data.slug}` : '/shop',
+    metadata: { shop_id: data.id, status: body.status, shop_name: data.name },
+  }).catch((notificationError) => console.error('[unimart:shops:notify]', notificationError))
   return jsonOk({ data })
 }

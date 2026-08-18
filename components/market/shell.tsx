@@ -32,9 +32,9 @@ export function MarketShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[#fbfcfb] text-[#29463f]">
-      <div className="flex min-h-screen">
+      <div className="flex min-h-svh">
         <AppSidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <MobileTabSwipe disabled={menuOpen || authOpen}>
             <TopBar onOpenMenu={() => setMenuOpen(true)} />
             {setupNeeded && (
@@ -46,6 +46,10 @@ export function MarketShell({ children }: { children: React.ReactNode }) {
             )}
             {profile?.account_status === 'suspended' || profile?.account_status === 'banned' ? (
               <RestrictedAccount status={profile.account_status} />
+            ) : view === 'messages' ? (
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
+                {children}
+              </div>
             ) : (
               <div className="pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
                 {children}

@@ -20,7 +20,7 @@ const COMPANY = [
 ]
 
 const SUPPORT = [
-  { label: 'Help center', href: '/help' },
+  { label: 'FAQ', href: '/help' },
   { label: 'Safety tips', href: '/safety' },
   { label: 'Community guidelines', href: '/guidelines' },
   { label: 'Report an issue', href: '/contact' },

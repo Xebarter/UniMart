@@ -1,4 +1,22 @@
-import type { AdminAnalytics, AdminSettingsSnapshot, AdminStats, Article, AuditLog, Conversation, FollowedProfile, Listing, Message, Notification, Paginated, Payment, Profile, Report, Shop } from '@/lib/types'
+import type {
+  AdminAnalytics,
+  AdminSettingsSnapshot,
+  AdminStats,
+  Article,
+  AuditLog,
+  Conversation,
+  FollowedProfile,
+  Listing,
+  Message,
+  Notification,
+  NotificationPreferences,
+  NotificationType,
+  Paginated,
+  Payment,
+  Profile,
+  Report,
+  Shop,
+} from '@/lib/types'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -45,8 +63,25 @@ export const api = {
     request<{ data: Message }>('/api/messages', { method: 'POST', body: JSON.stringify(body) }),
   markRead: (conversation_id: string) =>
     request('/api/messages/read', { method: 'POST', body: JSON.stringify({ conversation_id }) }),
-  notifications: () => request<{ data: Notification[]; unread: number }>('/api/notifications'),
-  markNotificationsRead: () => request('/api/notifications', { method: 'PATCH', body: JSON.stringify({ all: true }) }),
+  notifications: (params?: {
+    unread?: boolean
+    type?: NotificationType | 'all'
+    limit?: number
+    before?: string
+  }) => {
+    const search = new URLSearchParams()
+    if (params?.unread) search.set('unread', '1')
+    if (params?.type && params.type !== 'all') search.set('type', params.type)
+    if (params?.limit) search.set('limit', String(params.limit))
+    if (params?.before) search.set('before', params.before)
+    const query = search.toString()
+    return request<{ data: Notification[]; unread: number; preferences: NotificationPreferences }>(`/api/notifications${query ? `?${query}` : ''}`)
+  },
+  markNotificationsRead: () => request<{ read: number }>('/api/notifications', { method: 'PATCH', body: JSON.stringify({ all: true }) }),
+  markNotificationRead: (id: string) =>
+    request<{ read: number }>('/api/notifications', { method: 'PATCH', body: JSON.stringify({ id }) }),
+  updateNotificationPreferences: (body: Partial<NotificationPreferences>) =>
+    request<{ preferences: NotificationPreferences }>('/api/notifications', { method: 'PUT', body: JSON.stringify(body) }),
   report: (body: Record<string, unknown>) =>
     request<{ data: Report }>('/api/reports', { method: 'POST', body: JSON.stringify(body) }),
   follow: (following_id: string) =>
@@ -54,6 +89,10 @@ export const api = {
   unfollow: (following_id: string) =>
     request('/api/follows', { method: 'DELETE', body: JSON.stringify({ following_id }) }),
   follows: () => request<{ data: FollowedProfile[] }>('/api/follows'),
+  saveDeviceToken: (token: string, platform = 'web') =>
+    request('/api/devices', { method: 'POST', body: JSON.stringify({ token, platform }) }),
+  removeDeviceToken: (token: string) =>
+    request('/api/devices', { method: 'DELETE', body: JSON.stringify({ token }) }),
   shop: () => request<{ data: Shop | null }>('/api/shops'),
   shops: (params?: string) => request<{ data: Shop[] }>(`/api/shops${params ? `?${params}` : ''}`),
   shopByOwner: (ownerId: string) => request<{ data: Shop | null }>(`/api/shops?owner_id=${ownerId}`),

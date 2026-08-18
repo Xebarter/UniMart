@@ -7,9 +7,11 @@ import { loginHref } from '@/lib/auth'
 import { marketPaths } from '@/lib/market-paths'
 import { api } from '@/lib/api-client'
 import { ensureBrowserSession } from '@/lib/auth-session'
+import { subscribeToFirebaseForegroundMessages } from '@/lib/firebase-messaging'
+import { DEFAULT_NOTIFICATION_PREFERENCES } from '@/lib/notification-prefs'
 import { createClient } from '@/lib/supabase/client'
 import type { MarketCategory } from '@/lib/search'
-import type { Article, Conversation, Listing, Notification, Profile, Shop } from '@/lib/types'
+import type { Article, Conversation, Listing, Notification, NotificationPreferences, Profile, Shop } from '@/lib/types'
 
 type MarketContextValue = {
   profile: Profile | null
@@ -22,6 +24,7 @@ type MarketContextValue = {
   saved: string[]
   conversations: Conversation[]
   notifications: Notification[]
+  notificationPreferences: NotificationPreferences
   loading: boolean
   setupNeeded: boolean
   query: string
@@ -40,6 +43,8 @@ type MarketContextValue = {
   closeAuth: () => void
   finishAuth: () => Promise<void>
   markNotificationsRead: () => Promise<void>
+  markNotificationRead: (id: string) => Promise<void>
+  saveNotificationPreferences: (updates: Partial<NotificationPreferences>) => Promise<void>
   addListing: (listing: Listing) => void
   updateMyListing: (listing: Listing) => void
   setMyShop: (shop: Shop | null) => void
@@ -72,6 +77,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   const [saved, setSaved] = useState<string[]>([])
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [notifications, setNotifications] = useState<Notification[]>([])
+  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES)
   const [loading, setLoading] = useState(true)
   const [setupNeeded, setSetupNeeded] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
@@ -104,6 +110,8 @@ export function MarketProvider({ children }: { children: ReactNode }) {
       setMyListings([])
       setMyShop(null)
       setConversations([])
+      setNotifications([])
+      setNotificationPreferences(DEFAULT_NOTIFICATION_PREFERENCES)
       setLoading(false)
       return
     }
@@ -114,7 +122,11 @@ export function MarketProvider({ children }: { children: ReactNode }) {
       const [favorites, inbox, notes, mine, shop] = await Promise.all([
         api.favorites().catch(() => ({ data: [] as { listing_id: string; listings: Listing | null }[] })),
         api.conversations().catch(() => ({ data: [] as Conversation[] })),
-        api.notifications().catch(() => ({ data: [] as Notification[], unread: 0 })),
+        api.notifications({ limit: 80 }).catch(() => ({
+          data: [] as Notification[],
+          unread: 0,
+          preferences: DEFAULT_NOTIFICATION_PREFERENCES,
+        })),
         api.listings('mine=1').catch(() => ({ data: [] as Listing[] })),
         api.shop().catch(() => ({ data: null as Shop | null })),
       ])
@@ -125,6 +137,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
       setMyShop(shop.data)
       setConversations(inbox.data)
       setNotifications(notes.data)
+      setNotificationPreferences(notes.preferences ?? DEFAULT_NOTIFICATION_PREFERENCES)
     } catch {
       if (generation !== refreshGeneration.current) return
     } finally {
@@ -159,6 +172,20 @@ export function MarketProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('focus', keepAlive)
     }
   }, [refresh])
+
+  useEffect(() => {
+    if (!profile) return
+    let unsubscribe: (() => void) | undefined
+    void subscribeToFirebaseForegroundMessages(({ title, body }) => {
+      if (title || body) notify([title, body].filter(Boolean).join(' · '))
+      void refresh()
+    }).then((next) => {
+      unsubscribe = next
+    })
+    return () => {
+      unsubscribe?.()
+    }
+  }, [notify, profile, refresh])
 
   useEffect(() => {
     if (!profile) return
@@ -225,6 +252,18 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     notify(unread ? 'Notifications marked as read' : 'No new notifications')
   }, [notifications, notify])
 
+  const markNotificationRead = useCallback(async (id: string) => {
+    await api.markNotificationRead(id).catch(() => undefined)
+    setNotifications((current) => current.map((item) => (
+      item.id === id ? { ...item, read_at: item.read_at ?? new Date().toISOString() } : item
+    )))
+  }, [])
+
+  const saveNotificationPreferences = useCallback(async (updates: Partial<NotificationPreferences>) => {
+    const result = await api.updateNotificationPreferences(updates)
+    setNotificationPreferences(result.preferences)
+  }, [])
+
   const addListing = useCallback((listing: Listing) => {
     setListings((current) => [listing, ...current])
     setMyListings((current) => [listing, ...current])
@@ -255,6 +294,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     saved,
     conversations,
     notifications,
+    notificationPreferences,
     loading,
     setupNeeded,
     query,
@@ -273,6 +313,8 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     closeAuth,
     finishAuth,
     markNotificationsRead,
+    markNotificationRead,
+    saveNotificationPreferences,
     addListing,
     updateMyListing,
     setMyShop,
@@ -288,6 +330,8 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     listings,
     loading,
     markNotificationsRead,
+    markNotificationRead,
+    notificationPreferences,
     myListings,
     myShop,
     notifications,
@@ -297,6 +341,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     refresh,
     requestPost,
     requestShop,
+    saveNotificationPreferences,
     saved,
     savedListings,
     setupNeeded,

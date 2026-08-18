@@ -1,5 +1,6 @@
 import { writeAudit } from '@/lib/admin/audit'
 import { dbError, jsonError, jsonOk, parseJson, requireAdmin } from '@/lib/api/http'
+import { createNotification } from '@/lib/notifications'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -41,5 +42,22 @@ export async function PATCH(request: Request, { params }: Params) {
     .single()
   if (error) return dbError(error, 'Unable to update report.', 400)
   await writeAudit(auth.supabase, { actorId: auth.user.id, action: 'report.status', entityType: 'report', entityId: id, metadata: { status: body.status } })
+  if (data.reporter_id) {
+    const title = body.status === 'resolved'
+      ? 'Your report was resolved'
+      : body.status === 'dismissed'
+        ? 'Your report was closed'
+        : 'Your report is being reviewed'
+    await createNotification(auth.supabase, {
+      user_id: data.reporter_id,
+      type: 'report_update',
+      title,
+      body: `Status updated to ${body.status}.`,
+      listing_id: data.listing_id ?? null,
+      actor_id: auth.user.id,
+      path: '/messages?tab=alerts',
+      metadata: { report_id: id, status: body.status },
+    }).catch((notificationError) => console.error('[unimart:reports:notify]', notificationError))
+  }
   return jsonOk({ data })
 }

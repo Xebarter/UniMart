@@ -27,7 +27,7 @@ export function AppSidebar({
 }) {
   const pathname = usePathname()
   const view = viewFromPath(pathname)
-  const { profile, myShop, unreadMessages, requestPost, requestShop } = useMarket()
+  const { profile, myShop, unreadMessages, unreadNotes, requestPost, requestShop } = useMarket()
 
   const itemClass = (active: boolean) =>
     `group flex w-full items-center gap-3 rounded-2xl px-2.5 py-2 text-left font-inherit text-[13px] font-medium transition-all duration-200 ${
@@ -89,7 +89,10 @@ export function AppSidebar({
             Saved listings
           </Link>
           <Link href={marketPaths.messages} onClick={onNavigate} className={itemClass(view === 'messages')}>
-            <span className={iconWrap(view === 'messages')}><MessageCircle size={16} strokeWidth={1.9} /></span>
+            <span className={`${iconWrap(view === 'messages')} relative`}>
+              <MessageCircle size={16} strokeWidth={1.9} />
+              {unreadNotes > 0 && <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-[#f3c8ad]" />}
+            </span>
             Messages
             {unreadMessages > 0 && <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[#d1734b] px-1.5 text-[10px] font-bold text-white">{unreadMessages}</span>}
           </Link>

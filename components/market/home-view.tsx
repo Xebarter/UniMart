@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ArrowUpRight, ChevronRight, Filter, Store, TrendingUp } from 'lucide-react'
+import { ArrowUpRight, BriefcaseBusiness, ChevronRight, Filter, Home, LayoutGrid, Package, Store, Tag, TrendingUp } from 'lucide-react'
 import { ArticleCover } from '@/components/market/article-cover'
 import { ListingCard } from '@/components/market/listing-card'
 import { ShopCard } from '@/components/market/shop-card'
@@ -14,6 +14,14 @@ import { mergeShops, rankListings, rankShops, type MarketCategory } from '@/lib/
 import type { Shop } from '@/lib/types'
 
 const CATEGORIES: MarketCategory[] = ['All', 'Products', 'Services', 'Rentals', 'Gigs', 'Shops']
+const CATEGORY_UI: Record<MarketCategory, { hint: string; icon: typeof Package }> = {
+  All: { hint: 'Browse everything', icon: LayoutGrid },
+  Products: { hint: 'Goods & finds', icon: Package },
+  Services: { hint: 'Skills on demand', icon: BriefcaseBusiness },
+  Rentals: { hint: 'Rooms & gear', icon: Home },
+  Gigs: { hint: 'Short paid work', icon: Tag },
+  Shops: { hint: 'Storefronts', icon: Store },
+}
 const PREVIEW_COUNT = 8
 const SHOP_PREVIEW_COUNT = 8
 
@@ -81,12 +89,12 @@ export function HomeView() {
 
   return (
     <div className="mx-auto w-full max-w-[1180px] px-4 py-5 sm:px-8 sm:py-8 lg:px-10">
-      <section className="relative overflow-hidden rounded-2xl bg-[#315e55] px-5 py-7 text-white sm:rounded-[26px] sm:px-10 sm:py-10">
+      <section className="relative overflow-hidden rounded-2xl bg-[#315e55] px-5 py-5 text-white sm:rounded-[26px] sm:px-10 sm:py-8">
         <div className="relative z-10 max-w-[570px]">
-          <p className="mb-3 flex items-center gap-2 text-[10px] font-semibold tracking-wide text-[#c7ddd6] sm:text-xs">YOUR MARKET, YOUR WAY</p>
+          <p className="mb-2 flex items-center gap-2 text-[10px] font-semibold tracking-wide text-[#c7ddd6] sm:text-xs">YOUR MARKET, YOUR WAY</p>
           <h1 className="font-display max-w-[520px] text-[28px] font-bold leading-[1.1] tracking-[-0.04em] sm:text-[44px] sm:leading-[1.08]">Find it. Sell it.<br /><span className="text-[#f1c6aa]">Make it yours.</span></h1>
-          <p className="mt-3 max-w-[440px] text-sm leading-6 text-[#d4e4df] sm:mt-4 sm:text-[15px]">The trusted marketplace for students, creators, and businesses across Uganda.</p>
-          <button type="button" onClick={requestPost} className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#f3c8ad] px-4 py-3 text-sm font-bold text-[#315e55] transition hover:bg-white sm:mt-7 sm:w-auto sm:py-2.5">Start selling <ArrowUpRight size={16} /></button>
+          <p className="mt-2 max-w-[440px] text-sm leading-6 text-[#d4e4df] sm:mt-3 sm:text-[15px]">The trusted marketplace for students, creators, and businesses across Uganda.</p>
+          <button type="button" onClick={requestPost} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#f3c8ad] px-4 py-3 text-sm font-bold text-[#315e55] transition hover:bg-white sm:mt-5 sm:w-auto sm:py-2.5">Start selling <ArrowUpRight size={16} /></button>
         </div>
         <div className="pointer-events-none absolute -right-12 -top-20 hidden h-[340px] w-[400px] rotate-[-14deg] rounded-[44%] border-[26px] border-[#47766b]/70 md:block lg:-right-8 lg:-top-16" />
         <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[42%] bg-gradient-to-l from-[#244840]/35 to-transparent md:block" />
@@ -116,10 +124,30 @@ export function HomeView() {
           </div>
           <Link href={marketPaths.explore} className="hidden shrink-0 items-center gap-1 text-xs font-bold text-[#6a8179] sm:flex">Browse all <ChevronRight size={15} /></Link>
         </div>
-        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 no-scrollbar sm:mx-0 sm:px-0">
-          {CATEGORIES.map((item) => (
-            <button key={item} type="button" onClick={() => { setCategory(item); setShowAll(false) }} className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-xs font-bold transition ${category === item ? 'bg-[#315e55] text-white' : 'border border-[#e3eae6] bg-white text-[#75847f] hover:border-[#b8d1c9]'}`}>{item}</button>
-          ))}
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-6 sm:gap-2.5">
+          {CATEGORIES.map((item) => {
+            const { hint, icon: Icon } = CATEGORY_UI[item]
+            const active = category === item
+            return (
+              <button
+                key={item}
+                type="button"
+                aria-pressed={active}
+                onClick={() => { setCategory(item); setShowAll(false) }}
+                className={`flex min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-2xl border px-2 py-3 text-center transition sm:min-h-[88px] sm:px-3 ${
+                  active
+                    ? 'border-[#315e55] bg-[#315e55] text-white shadow-[0_10px_24px_rgba(49,94,85,0.18)]'
+                    : 'border-[#e3eae6] bg-white text-[#526861] hover:border-[#b8d1c9] hover:bg-[#f7fbf9]'
+                }`}
+              >
+                <span className={`flex size-8 items-center justify-center rounded-xl sm:size-9 ${active ? 'bg-white/15 text-white' : 'bg-[#eef4f1] text-[#315e55]'}`}>
+                  <Icon size={16} strokeWidth={2.15} />
+                </span>
+                <span className="text-[11px] font-bold leading-none tracking-[-0.01em] sm:text-xs">{item}</span>
+                <span className={`hidden text-[10px] font-medium leading-none lg:block ${active ? 'text-[#d4e4df]' : 'text-[#8b9994]'}`}>{hint}</span>
+              </button>
+            )
+          })}
         </div>
       </section>
 

@@ -22,30 +22,16 @@ import { PasswordInput } from '@/components/password-input'
 import { api } from '@/lib/api-client'
 import { loginHref } from '@/lib/auth'
 import { signOutUniMart } from '@/lib/auth-session'
+import { disableFirebasePushNotifications, enableFirebasePushNotifications, isFirebasePushSupported } from '@/lib/firebase-messaging'
 import { colorFromSeed, timeAgo } from '@/lib/format'
 import { marketPaths } from '@/lib/market-paths'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile } from '@/lib/types'
 
 const BIO_MAX = 500
-const PREFS_KEY = 'unimart_notification_prefs'
 const PASSWORD_CLASS = 'h-11 w-full rounded-xl border border-[#e5eae7] bg-[#fbfcfb] px-3.5 pr-11 text-sm outline-none focus:border-[#86aa9e] focus:ring-2 focus:ring-[#dcebe6]'
 
 type Section = 'account' | 'campus' | 'notifications' | 'privacy' | 'security'
-
-type NotificationPrefs = {
-  messages: boolean
-  listings: boolean
-  magazine: boolean
-  emailDigest: boolean
-}
-
-const DEFAULT_PREFS: NotificationPrefs = {
-  messages: true,
-  listings: true,
-  magazine: true,
-  emailDigest: false,
-}
 
 const NAV: { id: Section; label: string; hint: string; icon: typeof UserRound }[] = [
   { id: 'account', label: 'Account', hint: 'Photo, name, and bio', icon: UserRound },
@@ -55,23 +41,19 @@ const NAV: { id: Section; label: string; hint: string; icon: typeof UserRound }[
   { id: 'security', label: 'Security', hint: 'Password and sessions', icon: Lock },
 ]
 
-function loadPrefs(): NotificationPrefs {
-  try {
-    const raw = window.localStorage.getItem(PREFS_KEY)
-    if (!raw) return DEFAULT_PREFS
-    return { ...DEFAULT_PREFS, ...JSON.parse(raw) }
-  } catch {
-    return DEFAULT_PREFS
-  }
-}
-
-function savePrefs(prefs: NotificationPrefs) {
-  window.localStorage.setItem(PREFS_KEY, JSON.stringify(prefs))
-}
-
 export function SettingsView() {
   const pathname = usePathname()
-  const { profile, setProfile, loading, notify, notifications, markNotificationsRead, unreadNotes } = useMarket()
+  const {
+    profile,
+    setProfile,
+    loading,
+    notify,
+    notifications,
+    notificationPreferences,
+    saveNotificationPreferences,
+    markNotificationsRead,
+    unreadNotes,
+  } = useMarket()
   const [section, setSection] = useState<Section>('account')
   const [email, setEmail] = useState('')
   const [providers, setProviders] = useState<string[]>([])
@@ -168,6 +150,8 @@ export function SettingsView() {
             <NotificationsSection
               notifications={notifications}
               unreadNotes={unreadNotes}
+              preferences={notificationPreferences}
+              savePreferences={saveNotificationPreferences}
               markAllRead={markNotificationsRead}
               notify={notify}
             />
@@ -467,55 +451,111 @@ function Toggle({
 function NotificationsSection({
   notifications,
   unreadNotes,
+  preferences,
+  savePreferences,
   markAllRead,
   notify,
 }: {
   notifications: { id: string; title: string; body: string; created_at: string; read_at: string | null }[]
   unreadNotes: number
+  preferences: {
+    push_enabled: boolean
+    push_messages: boolean
+    push_sales: boolean
+    push_favorites: boolean
+    push_follows: boolean
+    push_report_updates: boolean
+    push_account_notices: boolean
+  }
+  savePreferences: (updates: {
+    push_enabled?: boolean
+    push_messages?: boolean
+    push_sales?: boolean
+    push_favorites?: boolean
+    push_follows?: boolean
+    push_report_updates?: boolean
+    push_account_notices?: boolean
+  }) => Promise<void>
   markAllRead: () => Promise<void>
   notify: (message: string) => void
 }) {
-  const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS)
+  const [pushSupported, setPushSupported] = useState<boolean | null>(null)
+  const [pushBusy, setPushBusy] = useState(false)
 
   useEffect(() => {
-    setPrefs(loadPrefs())
+    void isFirebasePushSupported().then(setPushSupported)
   }, [])
 
-  function update(next: NotificationPrefs) {
-    setPrefs(next)
-    savePrefs(next)
-    notify('Notification preferences saved')
+  async function update(next: Parameters<typeof savePreferences>[0]) {
+    try {
+      if (typeof next.push_enabled === 'boolean') {
+        setPushBusy(true)
+        try {
+          if (next.push_enabled) await enableFirebasePushNotifications()
+          else await disableFirebasePushNotifications()
+        } finally {
+          setPushBusy(false)
+        }
+      }
+      await savePreferences(next)
+      notify('Notification preferences saved')
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Unable to update notification preferences')
+    }
   }
 
   const recent = notifications.slice(0, 6)
 
   return (
     <div className="space-y-5">
-      <Card eyebrow="Alerts" title="Notifications" description="Choose what UniMart should surface while you are nearby and in the app.">
+      <Card eyebrow="Delivery" title="Push notifications" description="Every notification is stored in `/messages`. Choose which ones are also allowed to reach your devices later.">
+        <div className="mb-4 rounded-2xl border border-[#eef3f0] bg-[#f8fbf9] px-4 py-3 text-sm text-[#5f746c]">
+          {pushSupported === false
+            ? 'This browser does not support Firebase push notifications. Your in-app inbox on /messages still works normally.'
+            : 'Firebase push is available when your browser allows notifications and a VAPID key is configured.'}
+        </div>
         <div className="divide-y divide-[#eef3f0]">
           <Toggle
-            checked={prefs.messages}
-            onChange={(value) => update({ ...prefs, messages: value })}
+            checked={preferences.push_enabled}
+            onChange={(value) => { void update({ push_enabled: value }) }}
+            label={pushBusy ? 'Updating push delivery…' : 'Enable push delivery'}
+            hint="Turn on future device delivery for the categories below."
+          />
+          <Toggle
+            checked={preferences.push_messages}
+            onChange={(value) => { void update({ push_messages: value }) }}
             label="Messages"
             hint="New chats and replies from buyers or sellers."
           />
           <Toggle
-            checked={prefs.listings}
-            onChange={(value) => update({ ...prefs, listings: value })}
-            label="Listing activity"
-            hint="When something you saved or posted needs attention."
+            checked={preferences.push_sales}
+            onChange={(value) => { void update({ push_sales: value }) }}
+            label="Sales"
+            hint="When one of your listings gets purchased."
           />
           <Toggle
-            checked={prefs.magazine}
-            onChange={(value) => update({ ...prefs, magazine: value })}
-            label="Magazine"
-            hint="Stories and community notes from Explore."
+            checked={preferences.push_favorites}
+            onChange={(value) => { void update({ push_favorites: value }) }}
+            label="Favorites"
+            hint="When someone saves one of your listings."
           />
           <Toggle
-            checked={prefs.emailDigest}
-            onChange={(value) => update({ ...prefs, emailDigest: value })}
-            label="Email digest"
-            hint="A short weekly summary. In-app alerts still work without it."
+            checked={preferences.push_follows}
+            onChange={(value) => { void update({ push_follows: value }) }}
+            label="Follows"
+            hint="When someone starts following your shop."
+          />
+          <Toggle
+            checked={preferences.push_report_updates}
+            onChange={(value) => { void update({ push_report_updates: value }) }}
+            label="Report updates"
+            hint="When support reviews or closes a report you sent."
+          />
+          <Toggle
+            checked={preferences.push_account_notices}
+            onChange={(value) => { void update({ push_account_notices: value }) }}
+            label="Account notices"
+            hint="Important changes like moderation, verification, or account status."
           />
         </div>
       </Card>
@@ -525,17 +565,20 @@ function NotificationsSection({
         title="Recent alerts"
         description={unreadNotes ? `${unreadNotes} unread in your account.` : 'You are caught up.'}
         footer={(
-          <div className="flex justify-end">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-[#8b9994]">Open the full inbox on the messages page.</p>
             <button
               type="button"
               onClick={async () => {
                 await markAllRead()
-                notify('Notifications marked as read')
               }}
               className="h-10 rounded-xl border border-[#dfe7e3] bg-white px-4 text-xs font-bold text-[#638076] hover:bg-[#f6f9f8]"
             >
               Mark all as read
             </button>
+            <Link href={marketPaths.messageAlerts} className="inline-flex h-10 items-center rounded-xl bg-[#315e55] px-4 text-xs font-bold text-white hover:bg-[#274c44]">
+              Open notifications
+            </Link>
           </div>
         )}
       >
