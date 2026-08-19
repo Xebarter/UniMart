@@ -1,13 +1,16 @@
 import { createClient } from '@/lib/supabase/server'
-import { dbError, jsonError, jsonOk, parseJson, rejectIfMissingStudentNumber, rejectIfRestricted, requireUser } from '@/lib/api/http'
+import { dbError, jsonError, jsonOk, parseJson, rejectIfMissingContactPhone, rejectIfMissingStudentNumber, rejectIfRestricted, requireUser } from '@/lib/api/http'
 import { isCategory, isRentPeriod } from '@/lib/format'
+import { gigContactAccess, redactGigPhones } from '@/lib/gigs'
+import { CONTACT_PHONE_LISTING_REQUIRED, isPhoneRequiredError } from '@/lib/phone'
 import {
   isStudentNumberRequiredError,
   needsStudentNumber,
   STUDENT_NUMBER_LISTING_REQUIRED,
 } from '@/lib/student-number'
+import type { Listing } from '@/lib/types'
 
-const LISTING_SELECT = '*, listing_media(*), profiles:owner_id(id, display_name, university, campus, avatar_url, verified)'
+const LISTING_SELECT = '*, listing_media(*), profiles:owner_id(id, display_name, university, campus, avatar_url, verified, phone_primary, phone_secondary)'
 
 export async function GET(request: Request) {
   const supabase = await createClient()
@@ -48,7 +51,10 @@ export async function GET(request: Request) {
   builder = builder.order('featured_until', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false })
   const { data, error } = await builder
   if (error) return dbError(error, 'Unable to load listings.')
-  return jsonOk({ data: data ?? [] })
+  const { data: { user } } = await supabase.auth.getUser()
+  const access = await gigContactAccess(supabase, user?.id)
+  const listings = ((data ?? []) as Listing[]).map((item) => redactGigPhones(item, access))
+  return jsonOk({ data: listings })
 }
 
 export async function POST(request: Request) {
@@ -69,6 +75,8 @@ export async function POST(request: Request) {
     const missing = await rejectIfMissingStudentNumber(auth.supabase, auth.user.id, STUDENT_NUMBER_LISTING_REQUIRED)
     if (missing) return missing
   }
+  const missingPhone = await rejectIfMissingContactPhone(auth.supabase, auth.user.id, CONTACT_PHONE_LISTING_REQUIRED)
+  if (missingPhone) return missingPhone
   if (!Number.isFinite(price) || price < 0) return jsonError('A valid price is required.')
   const rentPeriod = category === 'Rentals'
     ? (typeof body.rent_period === 'string' && isRentPeriod(body.rent_period) ? body.rent_period : 'month')
@@ -96,6 +104,7 @@ export async function POST(request: Request) {
     .select(LISTING_SELECT)
     .single()
   if (isStudentNumberRequiredError(error)) return jsonError(STUDENT_NUMBER_LISTING_REQUIRED, 403)
+  if (isPhoneRequiredError(error)) return jsonError(CONTACT_PHONE_LISTING_REQUIRED, 403)
   if (error) return dbError(error, 'Unable to create listing.', 400)
   return jsonOk({ data }, 201)
 }

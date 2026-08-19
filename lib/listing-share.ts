@@ -1,9 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 import { formatUGX, listingImage, rentPeriodSuffix } from '@/lib/format'
+import { redactGigPhones } from '@/lib/gigs'
 import { marketPaths } from '@/lib/market-paths'
 import type { Listing } from '@/lib/types'
 
-const LISTING_SELECT = '*, listing_media(*), profiles:owner_id(id, display_name, university, campus, avatar_url, verified)'
+const LISTING_SELECT = '*, listing_media(*), profiles:owner_id(id, display_name, university, campus, avatar_url, verified, phone_primary, phone_secondary)'
 
 function createPublicSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -20,7 +21,7 @@ export async function fetchListing(id: string): Promise<Listing | null> {
   const supabase = createPublicSupabase()
   const { data, error } = await supabase.from('listings').select(LISTING_SELECT).eq('id', id).maybeSingle()
   if (error || !data) return null
-  return data as Listing
+  return redactGigPhones(data as Listing, { viewerId: null, student: false })
 }
 
 export function isShareableImage(url: string) {

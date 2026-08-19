@@ -1,4 +1,6 @@
-import { dbError, jsonError, jsonOk, parseJson, rejectIfRestricted, requireUser } from '@/lib/api/http'
+import { dbError, jsonError, jsonOk, parseJson, rejectIfMissingStudentNumber, rejectIfRestricted, requireUser } from '@/lib/api/http'
+import { isGigListing } from '@/lib/gigs'
+import { STUDENT_NUMBER_GIG_REQUIRED } from '@/lib/student-number'
 import type { Conversation, Profile } from '@/lib/types'
 
 type MemberRow = {
@@ -39,7 +41,7 @@ export async function GET() {
       .in('conversation_id', ids),
     auth.supabase
       .from('messages')
-      .select('id, body, created_at, sender_id, conversation_id')
+      .select('id, body, created_at, sender_id, conversation_id, kind, application_id')
       .in('conversation_id', ids)
       .order('created_at', { ascending: false }),
   ])
@@ -61,7 +63,7 @@ export async function GET() {
     membersByConversation.set(member.conversation_id, list)
   }
 
-  const messagesByConversation = new Map<string, { id: string; body: string; created_at: string; sender_id: string }[]>()
+  const messagesByConversation = new Map<string, { id: string; body: string; created_at: string; sender_id: string; kind?: string; application_id?: string | null }[]>()
   for (const message of messages ?? []) {
     const list = messagesByConversation.get(message.conversation_id) ?? []
     list.push(message)
@@ -102,9 +104,17 @@ export async function POST(request: Request) {
   const body = await parseJson<{ recipient_id?: string; listing_id?: string | null }>(request)
   const recipientId = typeof body?.recipient_id === 'string' ? body.recipient_id : ''
   if (!recipientId || recipientId === auth.user.id) return jsonError('A valid recipient is required.')
+  const listingId = typeof body?.listing_id === 'string' ? body.listing_id : ''
+  if (listingId) {
+    const { data: listing } = await auth.supabase.from('listings').select('id, category, owner_id').eq('id', listingId).maybeSingle()
+    if (listing && isGigListing(listing) && listing.owner_id !== auth.user.id) {
+      const missing = await rejectIfMissingStudentNumber(auth.supabase, auth.user.id, STUDENT_NUMBER_GIG_REQUIRED)
+      if (missing) return missing
+    }
+  }
   const { data: conversationId, error } = await auth.supabase.rpc('get_or_create_conversation', {
     p_recipient: recipientId,
-    p_listing: body?.listing_id ?? null,
+    p_listing: listingId || null,
   })
   if (error || !conversationId) return dbError(error, 'Unable to start conversation.', 400)
   const { data: conversation, error: loadError } = await auth.supabase

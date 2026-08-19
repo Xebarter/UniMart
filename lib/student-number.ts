@@ -7,6 +7,8 @@ export const STUDENT_NUMBER_TAKEN = 'This student number is already in use.'
 export const STUDENT_NUMBER_LISTING_REQUIRED =
   'Enter your student number before posting products, services, or rentals.'
 export const STUDENT_NUMBER_SHOP_REQUIRED = 'Enter your student number before opening a shop.'
+export const STUDENT_NUMBER_GIG_REQUIRED =
+  'Enter your student number to apply for gigs, message the poster, or view their phone number.'
 
 const STUDENT_NUMBER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9/\- ]{2,38}[A-Za-z0-9]$/
 

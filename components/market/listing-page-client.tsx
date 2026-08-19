@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
+import { GigDetail } from '@/components/market/gig-detail'
 import { ListingDetail } from '@/components/market/listing-detail'
 import { useMarket } from '@/components/market/provider'
 import { api } from '@/lib/api-client'
@@ -55,5 +56,5 @@ export function ListingPageClient({ initialListing }: { initialListing?: Listing
     )
   }
 
-  return <ListingDetail listing={listing} />
+  return listing.category === 'Gigs' ? <GigDetail listing={listing} /> : <ListingDetail listing={listing} />
 }

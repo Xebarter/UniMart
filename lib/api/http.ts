@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { User } from '@supabase/supabase-js'
 import { isRestrictedStatus, loadAccountStatus, loadOperator } from '@/lib/admin/account'
+import { hasContactPhone } from '@/lib/phone'
 import { hasStudentNumber } from '@/lib/student-number'
 import { createClient } from '@/lib/supabase/server'
 import type { createClient as createServerSupabase } from '@/lib/supabase/server'
@@ -78,6 +79,16 @@ export async function rejectIfMissingStudentNumber(
 ) {
   const { data } = await supabase.from('profiles').select('student_number').eq('id', userId).maybeSingle()
   if (hasStudentNumber(data?.student_number)) return null
+  return jsonError(message, 403)
+}
+
+export async function rejectIfMissingContactPhone(
+  supabase: Awaited<ReturnType<typeof createServerSupabase>>,
+  userId: string,
+  message: string,
+) {
+  const { data } = await supabase.from('profiles').select('phone_primary').eq('id', userId).maybeSingle()
+  if (hasContactPhone(data?.phone_primary)) return null
   return jsonError(message, 403)
 }
 

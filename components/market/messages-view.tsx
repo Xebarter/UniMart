@@ -6,9 +6,11 @@ import { useRouter } from 'next/navigation'
 import {
   ArrowLeft,
   Bell,
+  Briefcase,
   CheckCheck,
   Clock3,
   Cog,
+  FileText,
   Flag,
   Heart,
   Inbox,
@@ -26,10 +28,12 @@ import { api } from '@/lib/api-client'
 import { createClient } from '@/lib/supabase/client'
 import { colorFromSeed, formatUGX, timeAgo } from '@/lib/format'
 import { marketPaths } from '@/lib/market-paths'
-import type { Conversation, Message, Notification } from '@/lib/types'
+import { formatPhoneDisplay } from '@/lib/phone'
+import type { Conversation, GigApplication, Message, Notification } from '@/lib/types'
 
 const BODY_MAX = 4000
 const SUGGESTIONS = ['Is this still available?', 'Can we meet nearby?', 'What is the best price?']
+const GIG_SUGGESTIONS = ['When would you like me to start?', 'Is this still open?', 'Can we confirm the pay?']
 
 type InboxFilter = 'all' | 'unread'
 type Panel = 'inbox' | 'alerts'
@@ -42,7 +46,12 @@ function listingOf(conversation?: Conversation | null) {
 }
 
 function previewOf(conversation: Conversation) {
-  return conversation.messages?.[0]?.body?.trim() || 'No messages yet'
+  const last = conversation.messages?.[0]
+  const listing = listingOf(conversation)
+  if (last?.kind === 'gig_application') {
+    return listing?.title ? `Applied for ${listing.title}` : 'New gig application'
+  }
+  return last?.body?.trim() || 'No messages yet'
 }
 
 function threadClock(value: string) {
@@ -70,6 +79,7 @@ function sameDay(a: string, b: string) {
 
 function notificationIcon(type: string) {
   if (type === 'message') return MessageCircle
+  if (type === 'gig_application') return Briefcase
   if (type === 'sale') return ShoppingBag
   if (type === 'favorite') return Heart
   if (type === 'follow') return UserPlus
@@ -86,9 +96,9 @@ function notificationHref(item: Notification) {
 function matchesNotificationFilter(item: Notification, filter: NotificationFilter) {
   if (filter === 'all') return true
   if (filter === 'unread') return !item.read_at
-  if (filter === 'messages') return item.type === 'message'
+  if (filter === 'messages') return item.type === 'message' || item.type === 'gig_application'
   if (filter === 'account') return item.type === 'account_notice' || item.type === 'report_update'
-  return item.type === 'sale' || item.type === 'favorite' || item.type === 'follow'
+  return item.type === 'sale' || item.type === 'favorite' || item.type === 'follow' || item.type === 'gig_application'
 }
 
 export function MessagesView({
@@ -123,6 +133,7 @@ export function MessagesView({
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
   const [reporting, setReporting] = useState(false)
+  const [gigApplication, setGigApplication] = useState<GigApplication | null>(null)
   const scrollerRef = useRef<HTMLDivElement>(null)
   const composerRef = useRef<HTMLTextAreaElement>(null)
 
@@ -182,6 +193,24 @@ export function MessagesView({
       })
     return () => { cancelled = true }
   }, [conversationId, refresh])
+
+  useEffect(() => {
+    if (!listing?.id || listing.category !== 'Gigs') {
+      setGigApplication(null)
+      return
+    }
+    let cancelled = false
+    api.gigApplications(listing.id)
+      .then((result) => {
+        if (cancelled) return
+        const match = [...result.data, result.mine].filter(Boolean).find((item) => item?.conversation_id === conversationId)
+        setGigApplication(match ?? result.mine ?? result.data[0] ?? null)
+      })
+      .catch(() => {
+        if (!cancelled) setGigApplication(null)
+      })
+    return () => { cancelled = true }
+  }, [conversationId, listing?.category, listing?.id])
 
   useEffect(() => {
     const node = scrollerRef.current
@@ -331,6 +360,7 @@ export function MessagesView({
                 <ThreadHeader
                   conversation={active}
                   listing={listing}
+                  application={gigApplication}
                   reporting={reporting}
                   onReport={() => void reportUser()}
                 />
@@ -341,10 +371,12 @@ export function MessagesView({
                       <div className="ml-auto h-10 w-1/2 animate-pulse rounded-2xl bg-[#e7eeeb]" />
                       <div className="h-16 w-3/4 animate-pulse rounded-2xl bg-[#eef4f1]" />
                     </div>
-                  ) : messages.length ? (
-                    messages.map((message, index) => {
+                  ) : messages.length || gigApplication ? (
+                    <>
+                      {gigApplication ? <GigApplicationCard application={gigApplication} listingId={listing?.id} /> : null}
+                      {messages.filter((message) => message.kind !== 'gig_application').map((message, index, thread) => {
                       const mine = message.sender_id === profileId
-                      const previous = messages[index - 1]
+                      const previous = thread[index - 1]
                       const showDay = !previous || !sameDay(previous.created_at, message.created_at)
                       return (
                         <div key={message.id}>
@@ -359,17 +391,28 @@ export function MessagesView({
                           </div>
                         </div>
                       )
-                    })
+                    })}
+                    </>
                   ) : (
                     <div className="flex h-full min-h-[220px] flex-col items-center justify-center px-6 text-center">
                       <span className="flex size-12 items-center justify-center rounded-2xl bg-[#fff6f1] text-[#d1734b]"><Sparkles size={20} /></span>
                       <h2 className="mt-4 font-display text-lg font-bold text-[#29463f]">Start the conversation</h2>
                       <p className="mt-2 max-w-sm text-sm leading-6 text-[#748780]">
-                        {listing ? `Ask about ${listing.title}. A short, clear first message usually gets a faster reply.` : 'Send a short first message. Be clear about what you need.'}
+                        {listing?.category === 'Gigs'
+                          ? `Ask about ${listing.title}. Apply from the gig page if you have not already.`
+                          : listing ? `Ask about ${listing.title}. A short, clear first message usually gets a faster reply.` : 'Send a short first message. Be clear about what you need.'}
                       </p>
-                      {listing ? (
+                      {listing && listing.category !== 'Gigs' ? (
                         <div className="mt-4 flex flex-wrap justify-center gap-2">
                           {SUGGESTIONS.map((item) => (
+                            <button key={item} type="button" onClick={() => void send(item)} className="rounded-full border border-[#e5eae7] bg-white px-3 py-1.5 text-[11px] font-bold text-[#526861] hover:border-[#b8d1c9]">
+                              {item}
+                            </button>
+                          ))}
+                        </div>
+                      ) : listing?.category === 'Gigs' && !gigApplication ? (
+                        <div className="mt-4 flex flex-wrap justify-center gap-2">
+                          {GIG_SUGGESTIONS.map((item) => (
                             <button key={item} type="button" onClick={() => void send(item)} className="rounded-full border border-[#e5eae7] bg-white px-3 py-1.5 text-[11px] font-bold text-[#526861] hover:border-[#b8d1c9]">
                               {item}
                             </button>
@@ -502,6 +545,7 @@ function InboxPane({
                 <span className={`mt-0.5 block truncate text-[12px] ${unread ? 'font-medium text-[#526861]' : 'text-[#8b9994]'}`}>{previewOf(item)}</span>
                 <span className="mt-1 flex items-center gap-2">
                   {listing ? <span className="inline-flex max-w-full items-center gap-1 truncate rounded-full bg-[#fff6f1] px-2 py-0.5 text-[10px] font-bold text-[#d1734b]"><ShoppingBag size={10} /> {listing.title}</span> : null}
+                  {listing?.category === 'Gigs' ? <span className="inline-flex rounded-full bg-[#edf6f1] px-2 py-0.5 text-[10px] font-bold text-[#315e55]">Application</span> : null}
                   {unread > 0 ? <span className="inline-flex rounded-full bg-[#edf6f1] px-2 py-0.5 text-[10px] font-bold text-[#315e55]">New</span> : null}
                 </span>
               </span>
@@ -527,11 +571,13 @@ function InboxPane({
 function ThreadHeader({
   conversation,
   listing,
+  application,
   reporting,
   onReport,
 }: {
   conversation: Conversation
   listing: NonNullable<Conversation['listing']> | null
+  application?: GigApplication | null
   reporting: boolean
   onReport: () => void
 }) {
@@ -560,7 +606,10 @@ function ThreadHeader({
       {listing ? (
         <Link href={marketPaths.listing(listing.id)} className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-[#eef3f0] bg-[#f8fbf9] px-3 py-2.5 transition hover:border-[#c8dbd4]">
           <span className="min-w-0">
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#315e55]"><ShoppingBag size={11} /> {listing.category}</span>
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#315e55]">
+              {listing.category === 'Gigs' ? <Briefcase size={11} /> : <ShoppingBag size={11} />} {listing.category}
+              {listing.category === 'Gigs' ? ' · Application' : ''}
+            </span>
             <span className="mt-0.5 block truncate text-sm font-bold text-[#243e39]">{listing.title}</span>
           </span>
           <span className="shrink-0 text-sm font-bold text-[#d1734b]">{formatUGX(Number(listing.price))}</span>
@@ -568,8 +617,50 @@ function ThreadHeader({
       ) : null}
       <p className="mt-3 flex items-start gap-2 text-[11px] leading-5 text-[#8b9994]">
         <Shield size={12} className="mt-0.5 shrink-0 text-[#d1734b]" />
-        Keep PINs and passwords off this chat. Meet in a public place and confirm the item before you pay.
+        {listing?.category === 'Gigs' || application
+          ? 'Keep payment details off this chat until you have confirmed the work in person. UniMart does not employ applicants.'
+          : 'Keep PINs and passwords off this chat. Meet in a public place and confirm the item before you pay.'}
       </p>
+    </div>
+  )
+}
+
+function GigApplicationCard({ application, listingId }: { application: GigApplication; listingId?: string }) {
+  const [opening, setOpening] = useState(false)
+
+  async function openResume() {
+    if (!listingId) return
+    setOpening(true)
+    try {
+      const result = await api.gigResumeUrl(listingId, application.id)
+      window.open(result.url, '_blank', 'noopener,noreferrer')
+    } finally {
+      setOpening(false)
+    }
+  }
+
+  return (
+    <div className="mb-4 rounded-[22px] border border-[#dfe7e3] bg-[#f8fbf9] p-4">
+      <p className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#315e55]">
+        <Briefcase size={11} /> Gig application
+      </p>
+      <p className="mt-2 font-display text-lg font-bold text-[#243e39]">{application.profiles?.display_name || application.name}</p>
+      <p className="mt-1 text-[12px] text-[#748780]">
+        {[application.university, application.campus].filter(Boolean).join(' · ') || 'Student'}
+        {application.student_number ? ` · ${application.student_number}` : ''}
+      </p>
+      {application.phone ? <p className="mt-1 text-[12px] font-semibold text-[#29463f]">{formatPhoneDisplay(application.phone)}</p> : null}
+      {application.cover_letter ? (
+        <p className="mt-3 whitespace-pre-wrap text-[13px] leading-6 text-[#5f746c]">{application.cover_letter}</p>
+      ) : null}
+      <button
+        type="button"
+        onClick={() => void openResume()}
+        disabled={opening || !listingId}
+        className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#315e55] px-3 text-[11px] font-bold text-white disabled:opacity-50"
+      >
+        <FileText size={13} /> {opening ? 'Opening…' : 'Download resume'}
+      </button>
     </div>
   )
 }

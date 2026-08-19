@@ -1,13 +1,15 @@
 import { createClient } from '@/lib/supabase/server'
 import { dbError, jsonError, jsonOk, parseJson, rejectIfMissingStudentNumber, requireUser } from '@/lib/api/http'
 import { isCategory, isRentPeriod } from '@/lib/format'
+import { gigContactAccess, redactGigPhones } from '@/lib/gigs'
 import {
   isStudentNumberRequiredError,
   needsStudentNumber,
   STUDENT_NUMBER_LISTING_REQUIRED,
 } from '@/lib/student-number'
+import type { Listing } from '@/lib/types'
 
-const LISTING_SELECT = '*, listing_media(*), profiles:owner_id(id, display_name, university, campus, avatar_url, verified)'
+const LISTING_SELECT = '*, listing_media(*), profiles:owner_id(id, display_name, university, campus, avatar_url, verified, phone_primary, phone_secondary)'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -18,7 +20,9 @@ export async function GET(_request: Request, { params }: Params) {
   if (error) return dbError(error, 'Unable to load listing.')
   if (!data) return jsonError('Listing not found.', 404)
   await supabase.rpc('increment_listing_views', { p_listing_id: id })
-  return jsonOk({ data })
+  const { data: { user } } = await supabase.auth.getUser()
+  const access = await gigContactAccess(supabase, user?.id)
+  return jsonOk({ data: redactGigPhones(data as Listing, access) })
 }
 
 export async function PATCH(request: Request, { params }: Params) {

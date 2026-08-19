@@ -18,6 +18,8 @@ export type Profile = {
   verified: boolean
   account_status?: AccountStatus
   student_number?: string | null
+  phone_primary?: string | null
+  phone_secondary?: string | null
   created_at: string
   updated_at: string
   email?: string | null
@@ -51,7 +53,7 @@ export type Listing = {
   created_at: string
   updated_at: string
   listing_media?: ListingMedia[]
-  profiles?: Pick<Profile, 'id' | 'display_name' | 'university' | 'campus' | 'avatar_url' | 'verified'> | null
+  profiles?: Pick<Profile, 'id' | 'display_name' | 'university' | 'campus' | 'avatar_url' | 'verified' | 'phone_primary' | 'phone_secondary'> | null
   saved?: boolean
 }
 
@@ -70,7 +72,7 @@ export type Shop = {
   listing_count?: number
   follower_count?: number
   following?: boolean
-  profiles?: Pick<Profile, 'id' | 'display_name' | 'university' | 'campus' | 'avatar_url' | 'verified'> | null
+  profiles?: Pick<Profile, 'id' | 'display_name' | 'university' | 'campus' | 'avatar_url' | 'verified' | 'phone_primary' | 'phone_secondary'> | null
 }
 
 export type FollowedProfile = Profile & {
@@ -281,6 +283,30 @@ export type JobApplication = {
   job_roles?: Pick<JobRole, 'id' | 'title' | 'slug' | 'department' | 'status'> | null
 }
 
+export const GIG_APPLICATION_STATUSES = ['submitted', 'withdrawn'] as const
+export type GigApplicationStatus = (typeof GIG_APPLICATION_STATUSES)[number]
+
+export type GigApplication = {
+  id: string
+  listing_id: string
+  applicant_id: string
+  conversation_id: string | null
+  cover_letter: string
+  resume_path: string
+  name: string
+  email: string
+  phone: string
+  student_number: string
+  university: string
+  campus: string
+  status: GigApplicationStatus
+  created_at: string
+  updated_at?: string
+  profiles?: Pick<Profile, 'id' | 'display_name' | 'avatar_url' | 'university' | 'campus'> | null
+}
+
+export type MessageKind = 'text' | 'gig_application'
+
 export type Conversation = {
   id: string
   listing_id: string | null
@@ -288,7 +314,7 @@ export type Conversation = {
   updated_at: string
   listing?: Pick<Listing, 'id' | 'title' | 'price' | 'category'> | null
   conversation_members?: { user_id: string; last_read_at?: string | null; profiles?: Pick<Profile, 'id' | 'display_name' | 'avatar_url'> | null }[]
-  messages?: { id: string; body: string; created_at: string; sender_id: string }[]
+  messages?: { id: string; body: string; created_at: string; sender_id: string; kind?: MessageKind; application_id?: string | null }[]
   unread_count?: number
   other?: Pick<Profile, 'id' | 'display_name' | 'avatar_url'> | null
 }
@@ -298,6 +324,8 @@ export type Message = {
   conversation_id: string
   sender_id: string
   body: string
+  kind?: MessageKind
+  application_id?: string | null
   created_at: string
 }
 
@@ -443,7 +471,7 @@ export type AdminSettingsSnapshot = {
   }
 }
 
-export const NOTIFICATION_TYPES = ['message', 'sale', 'favorite', 'follow', 'report_update', 'account_notice'] as const
+export const NOTIFICATION_TYPES = ['message', 'sale', 'favorite', 'follow', 'report_update', 'account_notice', 'gig_application'] as const
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number]
 
 export type Notification = {

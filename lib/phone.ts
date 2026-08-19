@@ -48,3 +48,36 @@ export function maskPhone(e164: string) {
   if (digits.length < 6) return e164
   return `+${digits.slice(0, digits.length - 4).replace(/./g, '•')} ${digits.slice(-4)}`
 }
+
+export const CONTACT_PHONE_LISTING_REQUIRED = 'Enter a phone number before posting.'
+export const CONTACT_PHONE_SHOP_REQUIRED = 'Enter a phone number before opening a shop.'
+export const CONTACT_PHONE_GIG_REQUIRED = 'Add a phone number so the poster can reach you.'
+
+export function hasContactPhone(value?: string | null) {
+  return isValidE164((value ?? '').trim())
+}
+
+export function matchPhoneCountry(e164: string) {
+  const digits = e164.replace(/\D/g, '')
+  const ranked = [...PHONE_COUNTRIES].sort((left, right) => right.dial.length - left.dial.length)
+  return ranked.find((item) => digits.startsWith(item.dial)) ?? null
+}
+
+export function splitE164(e164: string) {
+  const trimmed = e164.trim()
+  const country = matchPhoneCountry(trimmed)
+  if (!country) return { iso: DEFAULT_PHONE_COUNTRY, national: trimmed.replace(/\D/g, '') }
+  return { iso: country.iso, national: trimmed.replace(/\D/g, '').slice(country.dial.length) }
+}
+
+export function formatPhoneDisplay(e164: string) {
+  const trimmed = e164.trim()
+  const country = matchPhoneCountry(trimmed)
+  if (!country) return trimmed
+  const local = trimmed.replace(/\D/g, '').slice(country.dial.length)
+  return `+${country.dial} ${local}`
+}
+
+export function isPhoneRequiredError(error: { message?: string } | null) {
+  return /phone number is required/i.test(error?.message ?? '')
+}

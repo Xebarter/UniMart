@@ -159,12 +159,14 @@ const FAQ_SECTIONS: FaqSection[] = [
       },
       {
         question: 'Who can apply for gigs?',
-        answer: ['Students can apply for gigs available on UniMart.'],
+        answer: [
+          'Only signed-in students with a student number on their UniMart profile can apply, message the poster, or view the poster’s phone number.',
+        ],
       },
       {
         question: 'How do I apply for a gig?',
         answer: [
-          'Open a gig listing and follow the application process provided. Include relevant information about your skills, experience and ability to complete the work.',
+          'Open the gig, tap Apply for this gig, confirm your student number, and send the form. Your name, campus, and phone are prefilled. Attach a resume. The poster receives your application in Messages and on the gig.',
         ],
       },
       {

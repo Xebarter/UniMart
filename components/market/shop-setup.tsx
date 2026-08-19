@@ -5,6 +5,7 @@ import { ImagePlus } from 'lucide-react'
 import { useMarket } from '@/components/market/provider'
 import { api } from '@/lib/api-client'
 import { slugifyShopName } from '@/lib/shop'
+import { hasContactPhone } from '@/lib/phone'
 import { hasStudentNumber } from '@/lib/student-number'
 import type { Shop } from '@/lib/types'
 
@@ -46,6 +47,10 @@ export function ShopSetup({
     event.preventDefault()
     if (!editing && !hasStudentNumber(profile?.student_number)) {
       setError('Enter your student number first.')
+      return
+    }
+    if (!editing && !hasContactPhone(profile?.phone_primary)) {
+      setError('Enter a phone number first.')
       return
     }
     setBusy(true)

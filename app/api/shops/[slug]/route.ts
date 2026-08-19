@@ -1,8 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { dbError, jsonError, jsonOk } from '@/lib/api/http'
+import { gigContactAccess, redactGigPhones } from '@/lib/gigs'
+import type { Listing } from '@/lib/types'
 
-const LISTING_SELECT = '*, listing_media(*), profiles:owner_id(id, display_name, university, campus, avatar_url, verified)'
-const SHOP_SELECT = '*, profiles:owner_id(id, display_name, university, campus, avatar_url, verified)'
+const LISTING_SELECT = '*, listing_media(*), profiles:owner_id(id, display_name, university, campus, avatar_url, verified, phone_primary, phone_secondary)'
+const SHOP_SELECT = '*, profiles:owner_id(id, display_name, university, campus, avatar_url, verified, phone_primary, phone_secondary)'
 
 type Params = { params: Promise<{ slug: string }> }
 
@@ -25,10 +27,11 @@ export async function GET(_request: Request, { params }: Params) {
     const { data: row } = await supabase.from('follows').select('follower_id').eq('follower_id', user.id).eq('following_id', shop.owner_id).maybeSingle()
     following = Boolean(row)
   }
+  const access = await gigContactAccess(supabase, user?.id ?? null)
 
   return jsonOk({
     data: shop,
-    listings: listings ?? [],
+    listings: ((listings ?? []) as Listing[]).map((item) => redactGigPhones(item, access)),
     follower_count: followerCount ?? 0,
     following,
   })

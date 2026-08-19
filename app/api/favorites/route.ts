@@ -1,8 +1,9 @@
 import { dbError, jsonError, jsonOk, parseJson, requireUser } from '@/lib/api/http'
+import { gigContactAccess, redactGigPhones } from '@/lib/gigs'
 import { createNotification } from '@/lib/notifications'
 import type { Listing } from '@/lib/types'
 
-const FAVORITE_SELECT = 'listing_id, created_at, listings(*, listing_media(*), profiles:owner_id(id, display_name, university, campus, avatar_url, verified))'
+const FAVORITE_SELECT = 'listing_id, created_at, listings(*, listing_media(*), profiles:owner_id(id, display_name, university, campus, avatar_url, verified, phone_primary, phone_secondary))'
 
 function asListing(value: unknown): Listing | null {
   if (!value) return null
@@ -19,12 +20,16 @@ export async function GET() {
     .eq('user_id', auth.user.id)
     .order('created_at', { ascending: false })
   if (error) return dbError(error, 'Unable to load favorites.')
+  const access = await gigContactAccess(auth.supabase, auth.user.id)
   return jsonOk({
-    data: (data ?? []).map((row) => ({
-      listing_id: row.listing_id as string,
-      created_at: row.created_at as string,
-      listings: asListing((row as { listings?: unknown }).listings),
-    })),
+    data: (data ?? []).map((row) => {
+      const listing = asListing((row as { listings?: unknown }).listings)
+      return {
+        listing_id: row.listing_id as string,
+        created_at: row.created_at as string,
+        listings: listing ? redactGigPhones(listing, access) : null,
+      }
+    }),
   })
 }
 

@@ -1,4 +1,5 @@
 import { authPhotoUrl, dbError, jsonError, jsonOk, parseJson, requireUser } from '@/lib/api/http'
+import { hasContactPhone, isValidE164 } from '@/lib/phone'
 import {
   isStudentNumberTakenError,
   normalizeStudentNumber,
@@ -11,17 +12,28 @@ export async function GET() {
   if (auth.response) return auth.response
   const { data, error } = await auth.supabase.from('profiles').select('*').eq('id', auth.user.id).maybeSingle()
   if (error) return dbError(error, 'Unable to load profile.')
+  let profile = data
   const fallback = authPhotoUrl(auth.user)
-  if (data && !data.avatar_url && fallback) {
+  if (profile && !profile.avatar_url && fallback) {
     const { data: updated } = await auth.supabase
       .from('profiles')
       .update({ avatar_url: fallback })
       .eq('id', auth.user.id)
       .select()
       .maybeSingle()
-    return jsonOk({ data: updated ?? { ...data, avatar_url: fallback }, user: accountUser(auth.user) })
+    profile = updated ?? { ...profile, avatar_url: fallback }
   }
-  return jsonOk({ data, user: accountUser(auth.user) })
+  const authPhone = auth.user.phone?.trim() || ''
+  if (profile && !hasContactPhone(profile.phone_primary) && isValidE164(authPhone)) {
+    const { data: updated } = await auth.supabase
+      .from('profiles')
+      .update({ phone_primary: authPhone, updated_at: new Date().toISOString() })
+      .eq('id', auth.user.id)
+      .select()
+      .maybeSingle()
+    profile = updated ?? { ...profile, phone_primary: authPhone }
+  }
+  return jsonOk({ data: profile, user: accountUser(auth.user) })
 }
 
 function accountUser(user: { id: string; email?: string; identities?: { provider?: string }[] | null; app_metadata?: { provider?: string } }) {
@@ -60,6 +72,26 @@ export async function PATCH(request: Request) {
       const invalid = validateStudentNumber(studentNumber)
       if (invalid) return jsonError(invalid)
       updates.student_number = studentNumber
+    }
+  }
+  if (typeof body.phone_primary === 'string') {
+    const phone = body.phone_primary.trim()
+    if (!phone) return jsonError('A phone number is required.')
+    if (!isValidE164(phone)) return jsonError('Enter a valid phone number.')
+    updates.phone_primary = phone
+  }
+  if (body.phone_secondary === null) {
+    updates.phone_secondary = null
+  } else if (typeof body.phone_secondary === 'string') {
+    const phone = body.phone_secondary.trim()
+    if (!phone) {
+      updates.phone_secondary = null
+    } else if (!isValidE164(phone)) {
+      return jsonError('Enter a valid second phone number.')
+    } else if (phone === updates.phone_primary) {
+      return jsonError('Use two different numbers.')
+    } else {
+      updates.phone_secondary = phone
     }
   }
   const { data, error } = await auth.supabase.from('profiles').upsert(updates).select().single()

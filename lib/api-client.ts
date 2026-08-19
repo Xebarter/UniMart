@@ -13,6 +13,7 @@ import type {
   NewsletterSubscriber,
   JobApplication,
   JobRole,
+  GigApplication,
   Conversation,
   FollowedProfile,
   Listing,
@@ -145,6 +146,24 @@ export const api = {
   conversations: () => request<{ data: Conversation[] }>('/api/conversations'),
   startConversation: (body: { recipient_id: string; listing_id?: string }) =>
     request<{ data: Conversation }>('/api/conversations', { method: 'POST', body: JSON.stringify(body) }),
+  gigApplications: (listingId: string) =>
+    request<{ data: GigApplication[]; mine: GigApplication | null; count: number }>(`/api/gigs/${listingId}/applications`),
+  applyGig: async (listingId: string, body: { cover_letter: string; resume: File }) => {
+    const form = new FormData()
+    form.set('cover_letter', body.cover_letter)
+    form.set('resume', body.resume)
+    const response = await fetch(`/api/gigs/${listingId}/apply`, { method: 'POST', body: form, credentials: 'include' })
+    const payload = (await response.json().catch(() => ({}))) as {
+      data?: GigApplication
+      conversation_id?: string
+      already?: boolean
+      error?: string
+    }
+    if (!response.ok) throw new Error(payload.error || 'Unable to submit your application.')
+    return payload
+  },
+  gigResumeUrl: (listingId: string, applicationId: string) =>
+    request<{ url: string }>(`/api/gigs/${listingId}/applications/${applicationId}/resume`),
   messages: (conversation_id: string) =>
     request<{ data: Message[] }>(`/api/messages?conversation_id=${conversation_id}`),
   sendMessage: (body: { conversation_id: string; body: string }) =>

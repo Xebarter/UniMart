@@ -1,13 +1,14 @@
 import { ilikeOr, sanitizeSearch } from '@/lib/admin/query'
 import { createClient } from '@/lib/supabase/server'
-import { dbError, jsonError, jsonOk, parseJson, rejectIfMissingStudentNumber, rejectIfRestricted, requireUser } from '@/lib/api/http'
+import { dbError, jsonError, jsonOk, parseJson, rejectIfMissingContactPhone, rejectIfMissingStudentNumber, rejectIfRestricted, requireUser } from '@/lib/api/http'
+import { CONTACT_PHONE_SHOP_REQUIRED, isPhoneRequiredError } from '@/lib/phone'
 import { isStudentNumberRequiredError, STUDENT_NUMBER_SHOP_REQUIRED } from '@/lib/student-number'
 import { slugifyShopName } from '@/lib/shop'
 import type { Shop } from '@/lib/types'
 
 type Supabase = Awaited<ReturnType<typeof createClient>>
 
-const SHOP_SELECT = '*, profiles:owner_id(id, display_name, university, campus, avatar_url, verified)'
+const SHOP_SELECT = '*, profiles:owner_id(id, display_name, university, campus, avatar_url, verified, phone_primary, phone_secondary)'
 
 async function uniqueSlug(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -129,6 +130,8 @@ export async function POST(request: Request) {
   if (restricted) return restricted
   const missingStudent = await rejectIfMissingStudentNumber(auth.supabase, auth.user.id, STUDENT_NUMBER_SHOP_REQUIRED)
   if (missingStudent) return missingStudent
+  const missingPhone = await rejectIfMissingContactPhone(auth.supabase, auth.user.id, CONTACT_PHONE_SHOP_REQUIRED)
+  if (missingPhone) return missingPhone
   const body = await parseJson(request)
   if (!body) return jsonError('Invalid JSON body.')
   const fields = shopFields(body, { requireName: true })
@@ -150,6 +153,7 @@ export async function POST(request: Request) {
     .select(SHOP_SELECT)
     .single()
   if (isStudentNumberRequiredError(error)) return jsonError(STUDENT_NUMBER_SHOP_REQUIRED, 403)
+  if (isPhoneRequiredError(error)) return jsonError(CONTACT_PHONE_SHOP_REQUIRED, 403)
   if (error) return dbError(error, 'Unable to open your shop.', 400)
   return jsonOk({ data: data as Shop }, 201)
 }

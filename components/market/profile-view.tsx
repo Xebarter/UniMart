@@ -12,6 +12,7 @@ import {
   MapPin,
   MessageCircle,
   Pencil,
+  Phone,
   Plus,
   Settings,
   Store,
@@ -25,6 +26,7 @@ import { loginHref } from '@/lib/auth'
 import { signOutUniMart } from '@/lib/auth-session'
 import { colorFromSeed, isFeatured } from '@/lib/format'
 import { marketPaths } from '@/lib/market-paths'
+import { formatPhoneDisplay, hasContactPhone } from '@/lib/phone'
 import type { FollowedProfile, Profile } from '@/lib/types'
 
 type Tab = 'listings' | 'saved' | 'following'
@@ -157,6 +159,7 @@ export function ProfileView() {
   }
 
   const joined = memberSince(profile.created_at)
+  const phones = [profile.phone_primary, profile.phone_secondary].filter((value): value is string => hasContactPhone(value))
   const shown = tab === 'saved' ? savedListings : liveListings
   const tabs: { id: Tab; label: string; count?: number }[] = [
     { id: 'listings', label: 'Listings', count: liveListings.length },
@@ -218,6 +221,19 @@ export function ProfileView() {
                     <MapPin size={14} />
                     {profile.campus || 'Add your area'}
                   </span>
+                  {phones.length ? (
+                    phones.map((phone) => (
+                      <a key={phone} href={`tel:${phone}`} className="inline-flex items-center gap-1.5 hover:text-[#315e55]">
+                        <Phone size={14} />
+                        {formatPhoneDisplay(phone)}
+                      </a>
+                    ))
+                  ) : (
+                    <Link href={`${marketPaths.settings}#campus`} className="inline-flex items-center gap-1.5 hover:text-[#526861]">
+                      <Phone size={14} />
+                      Add a phone number
+                    </Link>
+                  )}
                 </p>
               </div>
             </div>
@@ -420,7 +436,10 @@ export function ProfileView() {
       )}
 
       <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-[#e5eae7] pt-6">
-        <p className="text-xs text-[#8b9994]">Signed in{email ? ` as ${email}` : ''}.</p>
+        <p className="text-xs text-[#8b9994]">
+          Signed in{email ? ` as ${email}` : ''}.
+          {profile.student_number?.trim() ? ` Student number ${profile.student_number.trim()}.` : ''}
+        </p>
         <div className="flex flex-wrap gap-2">
           <Link href={marketPaths.settings} className="inline-flex items-center gap-1.5 rounded-xl border border-[#dfe7e3] px-3.5 py-2 text-xs font-bold text-[#638076] hover:bg-[#f6f9f8]">
             <Settings size={14} /> Account settings

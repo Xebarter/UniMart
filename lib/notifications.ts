@@ -86,7 +86,7 @@ function fallbackPath(input: NotificationInsert) {
 
 function isPushEnabledForType(preferences: NotificationPreferences, type: NotificationType) {
   if (!preferences.push_enabled) return false
-  if (type === 'message') return preferences.push_messages
+  if (type === 'message' || type === 'gig_application') return preferences.push_messages
   if (type === 'sale') return preferences.push_sales
   if (type === 'favorite') return preferences.push_favorites
   if (type === 'follow') return preferences.push_follows

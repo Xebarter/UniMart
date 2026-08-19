@@ -77,6 +77,8 @@ export function UserDetailView() {
         <Meta label="Account" value={<StatusBadge value={profile.account_status ?? 'active'} />} />
         <Meta label="Email" value={profile.email || '—'} />
         <Meta label="Student number" value={profile.student_number?.trim() || '—'} />
+        <Meta label="Phone" value={profile.phone_primary?.trim() || '—'} />
+        <Meta label="Second phone" value={profile.phone_secondary?.trim() || '—'} />
         <Meta label="Joined" value={formatDateTime(profile.created_at)} />
       </div>
       <div className="grid gap-5 lg:grid-cols-2">

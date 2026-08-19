@@ -19,8 +19,10 @@ import {
 } from 'lucide-react'
 import { ListingPhoto } from '@/components/listing-photo'
 import { StudentNumberGate } from '@/components/market/student-number-gate'
+import { PhoneContactGate } from '@/components/market/phone-contact-gate'
 import { api } from '@/lib/api-client'
 import { formatUGX, listingImage, parsePrice, rentPeriodSuffix } from '@/lib/format'
+import { hasContactPhone } from '@/lib/phone'
 import { hasStudentNumber, needsStudentNumber } from '@/lib/student-number'
 import type { Listing, ListingCategory, Profile, RentPeriod } from '@/lib/types'
 
@@ -192,12 +194,22 @@ export function PostComposer({
   const amount = parsePrice(price)
   const emptyPhotos = !existingPhotos.length && !files.length
   const needsStudentGate = needsStudentNumber(type) && !hasStudentNumber(profile.student_number) && (!listing || !needsStudentNumber(listing.category))
+  const needsPhoneGate = !listing && !hasContactPhone(profile.phone_primary)
   const [studentGateOpen, setStudentGateOpen] = useState(needsStudentGate)
+  const [phoneGateOpen, setPhoneGateOpen] = useState(!needsStudentGate && needsPhoneGate)
 
   useEffect(() => {
     if (needsStudentGate) setStudentGateOpen(true)
     else setStudentGateOpen(false)
   }, [needsStudentGate])
+
+  useEffect(() => {
+    if (needsStudentGate) {
+      setPhoneGateOpen(false)
+      return
+    }
+    setPhoneGateOpen(needsPhoneGate)
+  }, [needsStudentGate, needsPhoneGate])
 
   const previews = useMemo(
     () => files.map((file) => ({ file, url: URL.createObjectURL(file) })),
@@ -252,6 +264,10 @@ export function PostComposer({
   async function saveListing() {
     if (needsStudentGate) {
       setStudentGateOpen(true)
+      return
+    }
+    if (needsPhoneGate) {
+      setPhoneGateOpen(true)
       return
     }
     const trimmedTitle = title.trim()
@@ -734,6 +750,10 @@ export function PostComposer({
                       setStudentGateOpen(true)
                       return
                     }
+                    if (needsPhoneGate) {
+                      setPhoneGateOpen(true)
+                      return
+                    }
                     setStep(step + 1)
                   }}
                   className="inline-flex h-12 flex-[1.35] items-center justify-center rounded-xl bg-[#315e55] text-sm font-bold text-white shadow-[0_10px_24px_rgba(49,94,85,0.18)]"
@@ -773,6 +793,11 @@ export function PostComposer({
           setStudentGateOpen(false)
           if (!isDesktop() && step === 0) setStep(1)
         }}
+      />
+      <PhoneContactGate
+        open={phoneGateOpen}
+        onClose={() => setPhoneGateOpen(false)}
+        onSaved={() => setPhoneGateOpen(false)}
       />
     </div>
   )

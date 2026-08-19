@@ -3,7 +3,7 @@ import { ilikeOr, parseListQuery } from '@/lib/admin/query'
 import { dbError, jsonError, jsonOk, parseJson, requireAdmin } from '@/lib/api/http'
 import { createNotification } from '@/lib/notifications'
 
-const SELECT = '*, profiles:owner_id(id, display_name, university, campus, avatar_url, verified), listing_media(*)'
+const SELECT = '*, profiles:owner_id(id, display_name, university, campus, avatar_url, verified, phone_primary, phone_secondary), listing_media(*)'
 
 export async function GET(request: Request) {
   const auth = await requireAdmin()

@@ -17,6 +17,7 @@ import {
   UserRound,
 } from 'lucide-react'
 import { Avatar } from '@/components/market/avatar'
+import { ContactPhoneInput } from '@/components/market/contact-phone-input'
 import { useMarket } from '@/components/market/provider'
 import { PasswordInput } from '@/components/password-input'
 import { api } from '@/lib/api-client'
@@ -25,6 +26,7 @@ import { signOutUniMart } from '@/lib/auth-session'
 import { disableFirebasePushNotifications, enableFirebasePushNotifications, isFirebasePushSupported } from '@/lib/firebase-messaging'
 import { colorFromSeed, timeAgo } from '@/lib/format'
 import { marketPaths } from '@/lib/market-paths'
+import { DEFAULT_PHONE_COUNTRY, PHONE_COUNTRIES, hasContactPhone, isValidE164, splitE164, toE164 } from '@/lib/phone'
 import { normalizeStudentNumber, validateStudentNumber } from '@/lib/student-number'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile } from '@/lib/types'
@@ -36,7 +38,7 @@ type Section = 'account' | 'campus' | 'notifications' | 'privacy' | 'security'
 
 const NAV: { id: Section; label: string; hint: string; icon: typeof UserRound }[] = [
   { id: 'account', label: 'Account', hint: 'Photo, name, and bio', icon: UserRound },
-  { id: 'campus', label: 'Location', hint: 'University, area, and student number', icon: MapPin },
+  { id: 'campus', label: 'Location', hint: 'University, student number, and phone', icon: MapPin },
   { id: 'notifications', label: 'Notifications', hint: 'Email, messages, and alerts', icon: Bell },
   { id: 'privacy', label: 'Privacy', hint: 'How others see you', icon: Shield },
   { id: 'security', label: 'Security', hint: 'Password and sessions', icon: Lock },
@@ -358,9 +360,15 @@ function CampusSection({
   setProfile: (profile: Profile | null) => void
   notify: (message: string) => void
 }) {
+  const primarySeed = hasContactPhone(profile.phone_primary) ? splitE164(profile.phone_primary!) : { iso: DEFAULT_PHONE_COUNTRY, national: '' }
+  const secondarySeed = hasContactPhone(profile.phone_secondary) ? splitE164(profile.phone_secondary!) : { iso: DEFAULT_PHONE_COUNTRY, national: '' }
   const [university, setUniversity] = useState(profile.university ?? '')
   const [campus, setCampus] = useState(profile.campus ?? '')
   const [studentNumber, setStudentNumber] = useState(profile.student_number ?? '')
+  const [phoneIso, setPhoneIso] = useState(primarySeed.iso)
+  const [phoneNational, setPhoneNational] = useState(primarySeed.national)
+  const [secondIso, setSecondIso] = useState(secondarySeed.iso)
+  const [secondNational, setSecondNational] = useState(secondarySeed.national)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -368,7 +376,17 @@ function CampusSection({
     setUniversity(profile.university ?? '')
     setCampus(profile.campus ?? '')
     setStudentNumber(profile.student_number ?? '')
+    const nextPrimary = hasContactPhone(profile.phone_primary) ? splitE164(profile.phone_primary!) : { iso: DEFAULT_PHONE_COUNTRY, national: '' }
+    const nextSecondary = hasContactPhone(profile.phone_secondary) ? splitE164(profile.phone_secondary!) : { iso: DEFAULT_PHONE_COUNTRY, national: '' }
+    setPhoneIso(nextPrimary.iso)
+    setPhoneNational(nextPrimary.national)
+    setSecondIso(nextSecondary.iso)
+    setSecondNational(nextSecondary.national)
   }, [profile])
+
+  function dial(iso: string) {
+    return PHONE_COUNTRIES.find((item) => item.iso === iso)?.dial ?? PHONE_COUNTRIES[0].dial
+  }
 
   return (
     <Card
@@ -393,12 +411,36 @@ function CampusSection({
                     return
                   }
                 }
+                const phoneUpdates: Record<string, string | null> = {}
+                if (phoneNational.trim()) {
+                  const primary = toE164(dial(phoneIso), phoneNational)
+                  if (!isValidE164(primary)) {
+                    setError('Enter a valid phone number.')
+                    return
+                  }
+                  phoneUpdates.phone_primary = primary
+                  if (secondNational.trim()) {
+                    const secondary = toE164(dial(secondIso), secondNational)
+                    if (!isValidE164(secondary)) {
+                      setError('Enter a valid second phone number.')
+                      return
+                    }
+                    if (secondary === primary) {
+                      setError('Use two different numbers.')
+                      return
+                    }
+                    phoneUpdates.phone_secondary = secondary
+                  } else {
+                    phoneUpdates.phone_secondary = null
+                  }
+                }
                 const result = await api.updateProfile({
                   display_name: profile.display_name,
                   university,
                   campus,
                   bio: profile.bio,
                   student_number: trimmedNumber,
+                  ...phoneUpdates,
                 })
                 setProfile(result.data)
                 notify('Location saved')
@@ -432,6 +474,32 @@ function CampusSection({
             className={inputClass}
           />
         </Field>
+        </div>
+        <div className="sm:col-span-2">
+          <Field label="Phone" hint="Buyers can call you">
+            <div className="mt-2">
+              <ContactPhoneInput
+                id="settings-phone-primary"
+                iso={phoneIso}
+                national={phoneNational}
+                onIsoChange={setPhoneIso}
+                onNationalChange={setPhoneNational}
+              />
+            </div>
+          </Field>
+        </div>
+        <div className="sm:col-span-2">
+          <Field label="Second phone" hint="Optional">
+            <div className="mt-2">
+              <ContactPhoneInput
+                id="settings-phone-secondary"
+                iso={secondIso}
+                national={secondNational}
+                onIsoChange={setSecondIso}
+                onNationalChange={setSecondNational}
+              />
+            </div>
+          </Field>
         </div>
       </div>
       <div className="mt-5 flex items-start gap-3 rounded-2xl border border-[#eef3f0] bg-[#f8fbf9] p-4">

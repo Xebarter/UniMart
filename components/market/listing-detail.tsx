@@ -14,6 +14,7 @@ import {
   Heart,
   MapPin,
   MessageCircle,
+  Phone,
   Pencil,
   Share2,
   Smartphone,
@@ -31,6 +32,7 @@ import { loginHref } from '@/lib/auth'
 import { colorFromSeed, conditionLabel, formatUGX, isFeatured, listingPhotos, rentPeriodLabel, rentPeriodSuffix, timeAgo } from '@/lib/format'
 import { isListingInShop } from '@/lib/shop'
 import { marketPaths } from '@/lib/market-paths'
+import { formatPhoneDisplay, hasContactPhone } from '@/lib/phone'
 import type { Listing, Shop } from '@/lib/types'
 
 export function ListingDetail({ listing }: { listing: Listing }) {
@@ -55,6 +57,9 @@ export function ListingDetail({ listing }: { listing: Listing }) {
   const condition = listing.category === 'Products' ? conditionLabel(listing.condition) : null
   const period = listing.category === 'Rentals' ? rentPeriodLabel(listing.rent_period) : null
   const unavailable = listing.status === 'sold' || listing.status === 'archived' || listing.status === 'removed'
+  const sellerPhones = [listing.profiles?.phone_primary, listing.profiles?.phone_secondary].filter(
+    (value): value is string => hasContactPhone(value),
+  )
 
   const related = useMemo(() => {
     const others = listings.filter((item) => item.id !== listing.id && item.status === 'active')
@@ -328,14 +333,21 @@ export function ListingDetail({ listing }: { listing: Listing }) {
                   >
                     <MessageCircle size={16} /> Message seller
                   </button>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button type="button" onClick={() => { void toggleSaved(listing.id) }} className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#dfe7e3] px-3 py-2.5 text-xs font-bold text-[#315e55] transition hover:border-[#b8d1c9] hover:bg-[#f7fbf9]">
-                      <Heart size={14} fill={isSaved ? 'currentColor' : 'none'} className={isSaved ? 'text-[#d1734b]' : ''} /> {isSaved ? 'Saved' : 'Save'}
-                    </button>
-                    <button type="button" onClick={() => setShareOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#dfe7e3] px-3 py-2.5 text-xs font-bold text-[#315e55] transition hover:border-[#b8d1c9] hover:bg-[#f7fbf9]">
-                      <Share2 size={14} /> Share
-                    </button>
-                  </div>
+                  {sellerPhones.length ? (
+                    <div className="space-y-2">
+                      {sellerPhones.map((phone) => (
+                        <div key={phone} className="flex items-center gap-2 rounded-xl border border-[#dfe7e3] bg-[#f7fbf9] px-3 py-2">
+                          <p className="min-w-0 flex-1 truncate text-sm font-bold text-[#29463f]">{formatPhoneDisplay(phone)}</p>
+                          <a
+                            href={`tel:${phone}`}
+                            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[#315e55] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#294f47]"
+                          >
+                            <Phone size={13} /> Call
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                 </>
               )}
             </div>

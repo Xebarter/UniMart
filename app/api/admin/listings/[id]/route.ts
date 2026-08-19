@@ -2,7 +2,7 @@ import { dbError, jsonError, jsonOk, requireAdmin } from '@/lib/api/http'
 
 type Params = { params: Promise<{ id: string }> }
 
-const SELECT = '*, profiles:owner_id(id, display_name, university, campus, avatar_url, verified), listing_media(*)'
+const SELECT = '*, profiles:owner_id(id, display_name, university, campus, avatar_url, verified, phone_primary, phone_secondary), listing_media(*)'
 
 export async function GET(_request: Request, { params }: Params) {
   const { id } = await params
