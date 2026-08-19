@@ -8,7 +8,6 @@ import {
   PHONE_SEND_BUTTON_ID,
   clearPhoneAuth,
   confirmPhoneCode,
-  ensurePhoneVerifier,
   phoneAuthMessage,
   sendPhoneCode,
 } from '@/lib/phone-auth-client'
@@ -31,8 +30,6 @@ export function PhoneAuthForm({
   sendLabel?: string
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
-  const onErrorRef = useRef(onError)
-  onErrorRef.current = onError
   const [iso, setIso] = useState<string>(DEFAULT_PHONE_COUNTRY)
   const [national, setNational] = useState('')
   const [code, setCode] = useState('')
@@ -54,7 +51,6 @@ export function PhoneAuthForm({
   }, [cooldown])
 
   useEffect(() => {
-    void ensurePhoneVerifier().catch((error) => onErrorRef.current(phoneAuthMessage(error)))
     return () => clearPhoneAuth()
   }, [])
 
