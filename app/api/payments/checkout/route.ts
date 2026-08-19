@@ -4,6 +4,7 @@ import { createDpoToken } from '@/lib/payments/dpo'
 import { featurePriceFor, loadFeaturePrices } from '@/lib/payments/feature-prices'
 import { checkoutErrorMessage, parsePaymentMethod, providerForMethod } from '@/lib/payments/methods'
 import { hasContactPhone } from '@/lib/phone'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 function appUrl() {
   return process.env.NEXT_PUBLIC_APP_URL || process.env.SITE_URL || 'http://localhost:3000'
@@ -64,6 +65,7 @@ export async function POST(request: Request) {
   const names = (auth.user.user_metadata?.display_name as string | undefined)?.split(' ') ?? ['UniMart', 'Student']
   const description = `Feature ${listing.category}: ${listing.title}`
 
+  const admin = createAdminClient()
   try {
     if (method === 'mobile_money') {
       const purchase = await createPaytotaPurchase({
@@ -72,12 +74,14 @@ export async function POST(request: Request) {
         amount,
         reference: payment.id,
         description,
+        successCallback: `${origin}/api/paytota/webhook`,
       })
-      const executed = await executePaytotaCollection(purchase.id)
-      await auth.supabase
+      const executed = await executePaytotaCollection(purchase.id, phone)
+      const { error: savedError } = await admin
         .from('payments')
         .update({ provider_payment_id: purchase.id, checkout_url: null, raw: { purchase, execute: executed } })
         .eq('id', payment.id)
+      if (savedError) throw savedError
       return jsonOk({ payment_id: payment.id, status: 'pending_execute', phone }, 201)
     }
 
@@ -92,16 +96,17 @@ export async function POST(request: Request) {
       backUrl: `${callbackBase}?payment_id=${payment.id}`,
       phone,
     })
-    await auth.supabase.from('payments').update({
+    const { error: savedError } = await admin.from('payments').update({
       provider_payment_id: cardCheckout.transToken,
       provider_reference: cardCheckout.transRef || null,
       checkout_url: cardCheckout.checkoutUrl,
       raw: { xml: cardCheckout.raw, transRef: cardCheckout.transRef },
     }).eq('id', payment.id)
+    if (savedError) throw savedError
     return jsonOk({ payment_id: payment.id, checkout_url: cardCheckout.checkoutUrl }, 201)
   } catch (err) {
     console.error('[unimart:checkout]', method, err instanceof Error ? err.message : err)
-    await auth.supabase.from('payments').update({ status: 'failed' }).eq('id', payment.id)
+    await admin.from('payments').update({ status: 'failed' }).eq('id', payment.id)
     const detail = err instanceof Error ? err.message : ''
     return jsonError(detail || checkoutErrorMessage(method), 502)
   }

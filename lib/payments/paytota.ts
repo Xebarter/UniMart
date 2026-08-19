@@ -1,4 +1,4 @@
-import { createVerify } from 'node:crypto'
+import { createPublicKey, createVerify } from 'node:crypto'
 
 const BASE_URL = process.env.PAYTOTA_BASE_URL || 'https://gate.paytota.com'
 
@@ -26,7 +26,10 @@ export type PaytotaPurchase = {
   payment?: { paid_on?: number | string | null; amount?: number | null; status?: string }
   purchase?: { status?: string; reference?: string }
   status_history?: { status?: string }[]
-  transaction_data?: { attempts?: { successful?: boolean; error?: unknown }[] }
+  transaction_data?: {
+    extra?: { payload?: { transaction?: { status?: string } } }
+    attempts?: { successful?: boolean; error?: unknown }[]
+  }
 }
 
 export type PaytotaExecuteResult = {
@@ -40,9 +43,11 @@ export async function createPaytotaPurchase(input: {
   amount: number
   reference: string
   description: string
+  successCallback?: string
 }) {
   const response = await fetch(gateUrl('/api/v1/purchases/'), {
     method: 'POST',
+    cache: 'no-store',
     headers: {
       Authorization: `Bearer ${secret()}`,
       'Content-Type': 'application/json',
@@ -55,11 +60,12 @@ export async function createPaytotaPurchase(input: {
       },
       purchase: {
         currency: 'UGX',
-        products: [{ name: input.description, price: String(input.amount) }],
+        products: [{ name: input.description, price: String(Math.round(input.amount)) }],
       },
       reference: input.reference,
       brand_id: process.env.PAYTOTA_BRAND_ID,
       skip_capture: false,
+      ...(input.successCallback ? { success_callback: input.successCallback } : {}),
     }),
   })
   const data = (await response.json().catch(() => ({}))) as PaytotaPurchase & { detail?: string; error?: string }
@@ -69,12 +75,14 @@ export async function createPaytotaPurchase(input: {
   return data
 }
 
-export async function executePaytotaCollection(purchaseId: string) {
+export async function executePaytotaCollection(purchaseId: string, phone?: string) {
   const form = new FormData()
   form.set('s2s', 'true')
   form.set('pm', 'paytota_proxy')
+  if (phone) form.set('Phone', paytotaMsisdn(phone))
   const response = await fetch(gateUrl(`/p/${purchaseId}/`), {
     method: 'POST',
+    cache: 'no-store',
     headers: { Authorization: `Bearer ${secret()}` },
     body: form,
   })
@@ -86,26 +94,46 @@ export async function executePaytotaCollection(purchaseId: string) {
   return data
 }
 
+function asPurchase(body: unknown): PaytotaPurchase | null {
+  if (!body || typeof body !== 'object') return null
+  const record = body as Record<string, unknown>
+  if (typeof record.id === 'string') return body as PaytotaPurchase
+  const nested = record.data
+  if (nested && typeof nested === 'object' && typeof (nested as { id?: unknown }).id === 'string') {
+    return nested as PaytotaPurchase
+  }
+  return null
+}
+
 export async function getPaytotaPurchase(id: string) {
   const response = await fetch(gateUrl(`/api/v1/purchases/${id}/`), {
-    headers: { Authorization: `Bearer ${secret()}`, Accept: 'application/json' },
+    method: 'GET',
     cache: 'no-store',
+    headers: {
+      Authorization: `Bearer ${secret()}`,
+      Accept: 'application/json',
+      'Cache-Control': 'no-cache',
+    },
   })
   if (!response.ok) {
     console.error('[unimart:paytota-get]', id, response.status)
     return null
   }
-  return (await response.json()) as PaytotaPurchase
+  const purchase = asPurchase(await response.json().catch(() => null))
+  console.info('[unimart:paytota-get]', id, purchase?.status, purchase?.event_type)
+  return purchase
 }
 
 export function verifyPaytotaSignature(rawBody: string, signature: string | null) {
   const publicKey = process.env.PAYTOTA_WEBHOOK_PUBLIC_KEY
   if (!publicKey || !signature) return false
   try {
+    const pem = publicKey.replace(/\\n/g, '\n')
+    const key = createPublicKey(pem)
     const verifier = createVerify('SHA256')
     verifier.update(rawBody)
     verifier.end()
-    return verifier.verify(publicKey.replace(/\\n/g, '\n'), signature, 'base64')
+    return verifier.verify(key, signature, 'base64')
   } catch {
     return false
   }
@@ -121,6 +149,11 @@ export function isPaytotaFailed(status?: string) {
   return value === 'error' || value === 'failed' || value === 'payment_failure' || value === 'cancelled' || value === 'canceled' || value === 'expired'
 }
 
+function extraTransactionPaid(payload: PaytotaPurchase) {
+  const status = String(payload.transaction_data?.extra?.payload?.transaction?.status ?? '').toLowerCase()
+  return status === 'successful' || status === 'success' || status === 'paid'
+}
+
 export function interpretPaytotaPurchase(payload: PaytotaPurchase | null | undefined): 'paid' | 'pending' | 'failed' {
   if (!payload) return 'pending'
   const event = String(payload.event_type ?? '')
@@ -132,7 +165,7 @@ export function interpretPaytotaPurchase(payload: PaytotaPurchase | null | undef
   if (isPaytotaPaid(status)) return 'paid'
   if (isPaytotaFailed(status)) return 'failed'
 
-  if (payload.marked_as_paid || payload.payment?.paid_on) return 'paid'
+  if (payload.marked_as_paid || payload.payment?.paid_on || extraTransactionPaid(payload)) return 'paid'
   const history = payload.status_history ?? []
   if (history.some((item) => isPaytotaPaid(item?.status))) return 'paid'
 

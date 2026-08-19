@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { fulfillPaidPayment } from '@/lib/payments/fulfill'
 import { getPaytotaPurchase, interpretPaytotaPurchase } from '@/lib/payments/paytota'
 import { reconcileDpoPayment } from '@/lib/payments/dpo'
 
@@ -26,7 +27,7 @@ export async function GET(request: Request) {
         const purchase = await getPaytotaPurchase(payment.provider_payment_id)
         const outcome = interpretPaytotaPurchase(purchase)
         if (outcome === 'paid') {
-          await admin.rpc('fulfill_payment', { p_payment_id: payment.id })
+          await fulfillPaidPayment(admin, payment.id, purchase ?? payment.raw)
           reconciled += 1
         } else if (outcome === 'failed') {
           const providerStatus = (purchase?.status ?? '').toLowerCase()

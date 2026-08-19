@@ -1,9 +1,11 @@
 import { dbError, jsonError, jsonOk, requireUser } from '@/lib/api/http'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { fulfillPaidPayment } from '@/lib/payments/fulfill'
 import { getPaytotaPurchase, interpretPaytotaPurchase } from '@/lib/payments/paytota'
 import { reconcileDpoPayment } from '@/lib/payments/dpo'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   const auth = await requireUser()
@@ -22,10 +24,8 @@ export async function GET(request: Request) {
       const purchase = await getPaytotaPurchase(data.provider_payment_id)
       const outcome = interpretPaytotaPurchase(purchase)
       if (outcome === 'paid') {
-        await admin.rpc('fulfill_payment', { p_payment_id: data.id })
-        await admin.from('payments').update({ raw: purchase ?? data.raw }).eq('id', data.id)
-        const { data: updated } = await auth.supabase.from('payments').select('id, status, amount, currency').eq('id', paymentId).single()
-        return jsonOk({ data: updated ?? { ...publicData, status: 'paid' } })
+        await fulfillPaidPayment(admin, data.id, purchase ?? data.raw)
+        return jsonOk({ data: { ...publicData, status: 'paid' } })
       }
       if (outcome === 'failed') {
         const providerStatus = (purchase?.status ?? '').toLowerCase()
