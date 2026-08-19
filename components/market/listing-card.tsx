@@ -34,6 +34,29 @@ function RemoveButton({
   )
 }
 
+function PhotoBadges({
+  item,
+  compact = false,
+  className,
+}: {
+  item: Listing
+  compact?: boolean
+  className: string
+}) {
+  const statusLabel = item.status === 'unavailable' ? 'Unavailable' : item.status === 'sold' ? 'Sold' : null
+  const chip = compact
+    ? 'px-1.5 py-0.5 text-[9px] sm:px-2.5 sm:py-1 sm:text-[10px]'
+    : 'px-2.5 py-1 text-[10px]'
+  return (
+    <div className={`absolute z-[2] flex flex-wrap gap-1 ${className}`}>
+      <span className={`rounded-full bg-white/90 font-bold text-[#52635e] backdrop-blur-sm ${chip}`}>{item.category}</span>
+      {statusLabel ? (
+        <span className={`rounded-full bg-[#29463f] font-bold text-white ${chip}`}>{statusLabel}</span>
+      ) : null}
+    </div>
+  )
+}
+
 export function ListingCard({
   item,
   saved,
@@ -120,7 +143,7 @@ export function ListingCard({
           <div className="relative size-[6.5rem] shrink-0 sm:h-auto sm:w-full sm:size-auto">
             <Link href={href} className="block size-full text-left sm:h-auto">
               <ListingPhoto listing={item} alt={item.title} className="size-full sm:aspect-[4/3] sm:h-auto sm:w-full" />
-              <span className="absolute left-3 top-3 z-[2] hidden rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold text-[#52635e] backdrop-blur-sm sm:inline">{item.category}</span>
+              <PhotoBadges item={item} className="left-3 top-3 hidden sm:flex" />
             </Link>
             {onRemove && (
               <RemoveButton
@@ -156,7 +179,7 @@ export function ListingCard({
       <div className="relative">
         <Link href={href} className="block w-full text-left">
           <ListingPhoto listing={item} alt={item.title} className={`${compact ? 'aspect-square sm:aspect-[4/3]' : 'aspect-[4/3]'} w-full`} />
-          <span className={`absolute z-[2] rounded-full bg-white/90 font-bold text-[#52635e] backdrop-blur-sm ${compact ? 'left-2 top-2 px-1.5 py-0.5 text-[9px] sm:left-3 sm:top-3 sm:px-2.5 sm:py-1 sm:text-[10px]' : 'left-3 top-3 px-2.5 py-1 text-[10px]'}`}>{item.category}</span>
+          <PhotoBadges item={item} compact={compact} className={compact ? 'left-2 top-2 sm:left-3 sm:top-3' : 'left-3 top-3'} />
         </Link>
         {compact && saveControl ? (
           <div className="absolute right-2 top-2 z-[3] sm:right-2.5 sm:top-2.5">{saveControl}</div>

@@ -9,9 +9,9 @@ export default async function PaymentSuccessPage({
   return (
     <PaymentResult
       paymentId={paymentId}
-      fallback="paid"
-      title="Payment received"
-      body="Your listing is now featured for the next 7 days."
+      fallback="pending"
+      title="Confirming your card payment"
+      body="Stay on this page. We are checking the card network — this usually takes a few seconds."
     />
   )
 }

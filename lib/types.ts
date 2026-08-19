@@ -2,7 +2,7 @@ export const LISTING_CATEGORIES = ['Products', 'Services', 'Rentals', 'Gigs'] as
 export type ListingCategory = (typeof LISTING_CATEGORIES)[number]
 export const RENT_PERIODS = ['day', 'week', 'month'] as const
 export type RentPeriod = (typeof RENT_PERIODS)[number]
-export type ListingStatus = 'draft' | 'pending' | 'active' | 'sold' | 'archived' | 'removed'
+export type ListingStatus = 'draft' | 'pending' | 'active' | 'unavailable' | 'sold' | 'archived' | 'removed'
 
 export type AccountStatus = 'active' | 'suspended' | 'banned'
 export type UserRole = 'student' | 'moderator' | 'admin'
@@ -369,6 +369,15 @@ export type Payment = {
   profiles?: Pick<Profile, 'id' | 'display_name' | 'avatar_url'> | null
   listings?: Pick<Listing, 'id' | 'title'> | null
 }
+
+export type FeaturePrice = {
+  category: ListingCategory
+  amount_ugx: number
+  updated_at?: string
+  updated_by?: string | null
+}
+
+export type FeaturePriceMap = Record<ListingCategory, number>
 
 export type AuditLog = {
   id: string

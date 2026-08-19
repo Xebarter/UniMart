@@ -14,7 +14,7 @@ import type { Listing, Payment, Report } from '@/lib/types'
 
 type Listing360 = { data: Listing; reports: Report[]; payments: Payment[] }
 
-const STATUSES = ['active', 'pending', 'draft', 'sold', 'archived', 'removed'] as const
+const STATUSES = ['active', 'unavailable', 'pending', 'draft', 'sold', 'archived', 'removed'] as const
 
 export function ListingDetailView() {
   const { id } = useParams<{ id: string }>()

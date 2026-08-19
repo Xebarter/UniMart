@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { isPaytotaPaid, verifyPaytotaSignature } from '@/lib/payments/paytota'
+import { isPaytotaFailed, isPaytotaPaid, verifyPaytotaSignature } from '@/lib/payments/paytota'
 
 export const runtime = 'nodejs'
 
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
   if (!payment) return NextResponse.json({ received: true })
   if (isPaytotaPaid(status)) {
     await admin.rpc('fulfill_payment', { p_payment_id: payment.id })
-  } else if (['failed', 'error', 'cancelled', 'canceled', 'expired'].includes((status ?? '').toLowerCase())) {
+  } else if (isPaytotaFailed(status)) {
     await admin.from('payments').update({ status: status?.toLowerCase() === 'expired' ? 'expired' : status?.toLowerCase().startsWith('cancel') ? 'cancelled' : 'failed', raw: payload }).eq('id', payment.id)
   } else {
     await admin.from('payments').update({ raw: payload }).eq('id', payment.id)

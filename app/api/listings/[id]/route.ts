@@ -53,7 +53,7 @@ export async function PATCH(request: Request, { params }: Params) {
     if (!Number.isFinite(price) || price < 0) return jsonError('A valid price is required.')
     updates.price = price
   }
-  if (typeof body.status === 'string' && ['active', 'sold', 'archived', 'draft'].includes(body.status)) {
+  if (typeof body.status === 'string' && ['active', 'unavailable', 'sold', 'archived', 'draft'].includes(body.status)) {
     updates.status = body.status
   }
   if (body.shop_id === null) {

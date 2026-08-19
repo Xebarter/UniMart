@@ -1,43 +1,51 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { verifyDpoToken } from '@/lib/payments/dpo'
+import {
+  dpoPaymentIdFromFields,
+  dpoTokenFromFields,
+  parseDpoCallbackFields,
+  reconcileDpoPayment,
+} from '@/lib/payments/dpo'
 
 export const runtime = 'nodejs'
 
+function ok() {
+  return new NextResponse('OK', { status: 200, headers: { 'Content-Type': 'text/plain' } })
+}
+
 async function handle(request: Request) {
-  const url = new URL(request.url)
-  const paymentId = url.searchParams.get('payment_id') || url.searchParams.get('CompanyRef')
-  const transToken = url.searchParams.get('TransactionToken') || url.searchParams.get('TransID') || url.searchParams.get('TransToken')
-  const origin = process.env.NEXT_PUBLIC_APP_URL || process.env.SITE_URL || url.origin
+  const fields = await parseDpoCallbackFields(request)
+  const paymentId = dpoPaymentIdFromFields(fields)
+  const transToken = dpoTokenFromFields(fields)
   const admin = createAdminClient()
 
   let payment = null
   if (paymentId) {
-    const { data } = await admin.from('payments').select('*').eq('id', paymentId).maybeSingle()
+    const { data } = await admin.from('payments').select('*').eq('id', paymentId).eq('provider', 'dpo').maybeSingle()
     payment = data
   }
   if (!payment && transToken) {
     const { data } = await admin.from('payments').select('*').eq('provider_payment_id', transToken).maybeSingle()
     payment = data
   }
+  if (!payment && fields.TransRef) {
+    const { data } = await admin.from('payments').select('*').eq('provider_reference', fields.TransRef).maybeSingle()
+    payment = data
+  }
+  if (!payment) return ok()
+  if (payment.status === 'paid') return ok()
 
-  const token = transToken || payment?.provider_payment_id
-  if (!payment || !token) {
-    return NextResponse.redirect(`${origin}/payments/failure`)
+  if (!payment.provider_payment_id && transToken) {
+    await admin.from('payments').update({ provider_payment_id: transToken }).eq('id', payment.id)
+    payment.provider_payment_id = transToken
   }
 
   try {
-    const verified = await verifyDpoToken(token)
-    if (verified.paid) {
-      await admin.rpc('fulfill_payment', { p_payment_id: payment.id })
-      await admin.from('payments').update({ raw: { ...payment.raw, verify: verified.raw } }).eq('id', payment.id)
-      return NextResponse.redirect(`${origin}/payments/success?payment_id=${payment.id}`)
-    }
-    await admin.from('payments').update({ status: 'failed', raw: { ...payment.raw, verify: verified.raw } }).eq('id', payment.id)
-    return NextResponse.redirect(`${origin}/payments/failure?payment_id=${payment.id}`)
-  } catch {
-    return NextResponse.redirect(`${origin}/payments/failure?payment_id=${payment.id}`)
+    await reconcileDpoPayment(admin, payment, { callback: fields })
+  } catch (error) {
+    console.error('[unimart:dpo-callback]', error instanceof Error ? error.message : error)
   }
+  return ok()
 }
 
 export async function GET(request: Request) {

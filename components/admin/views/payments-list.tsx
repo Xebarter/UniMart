@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { Banknote, ChevronLeft, ChevronRight, CircleAlert, Clock3, CreditCard, Download, Receipt, Smartphone } from 'lucide-react'
 import { AdminButton, FilterBar, FilterSelect } from '@/components/admin/filter-bar'
+import { FeaturePricesCard } from '@/components/admin/views/feature-prices-card'
 import { InsightTile } from '@/components/admin/insight-tile'
 import { PageHeader } from '@/components/admin/page-header'
 import { StatusBadge } from '@/components/admin/status-badge'
@@ -97,6 +98,8 @@ export function PaymentsListView() {
       {error ? (
         <div className="rounded-2xl border border-[#f0c7b3] bg-[#fff5f0] px-4 py-3 text-sm text-[#9a4f32]">{error}</div>
       ) : null}
+
+      <FeaturePricesCard />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <InsightTile

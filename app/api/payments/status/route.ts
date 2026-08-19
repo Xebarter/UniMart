@@ -1,7 +1,7 @@
 import { dbError, jsonError, jsonOk, requireUser } from '@/lib/api/http'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getPaytotaPurchase, isPaytotaPaid } from '@/lib/payments/paytota'
-import { verifyDpoToken } from '@/lib/payments/dpo'
+import { getPaytotaPurchase, isPaytotaFailed, isPaytotaPaid } from '@/lib/payments/paytota'
+import { reconcileDpoPayment } from '@/lib/payments/dpo'
 
 export const runtime = 'nodejs'
 
@@ -20,19 +20,25 @@ export async function GET(request: Request) {
     const admin = createAdminClient()
     if (data.provider === 'paytota' && data.provider_payment_id) {
       const purchase = await getPaytotaPurchase(data.provider_payment_id)
-      if (isPaytotaPaid(purchase?.purchase?.status || purchase?.status)) {
+      const providerStatus = purchase?.purchase?.status || purchase?.status
+      if (isPaytotaPaid(providerStatus)) {
         await admin.rpc('fulfill_payment', { p_payment_id: data.id })
         const { data: updated } = await auth.supabase.from('payments').select('id, status, amount, currency').eq('id', paymentId).single()
         return jsonOk({ data: updated })
+      }
+      if (isPaytotaFailed(providerStatus)) {
+        const next = (providerStatus ?? '').toLowerCase() === 'expired' ? 'expired' : (providerStatus ?? '').toLowerCase().startsWith('cancel') ? 'cancelled' : 'failed'
+        await admin.from('payments').update({ status: next, raw: purchase ?? data.raw }).eq('id', data.id)
+        return jsonOk({ data: { ...publicData, status: next } })
       }
     }
     if (data.provider === 'dpo' && data.provider_payment_id) {
-      const verified = await verifyDpoToken(data.provider_payment_id)
-      if (verified.paid) {
-        await admin.rpc('fulfill_payment', { p_payment_id: data.id })
+      const reconciled = await reconcileDpoPayment(admin, data)
+      if (reconciled.status !== data.status) {
         const { data: updated } = await auth.supabase.from('payments').select('id, status, amount, currency').eq('id', paymentId).single()
-        return jsonOk({ data: updated })
+        return jsonOk({ data: updated ?? { ...publicData, status: reconciled.status } })
       }
+      return jsonOk({ data: { ...publicData, status: reconciled.status } })
     }
   } catch {
     // Keep the stored status if the provider lookup fails.

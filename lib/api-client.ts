@@ -9,6 +9,8 @@ import type {
   ContactInquiry,
   ContactPageSettings,
   ContactTopic,
+  FeaturePrice,
+  FeaturePriceMap,
   PressPage,
   NewsletterSubscriber,
   JobApplication,
@@ -210,7 +212,18 @@ export const api = {
   updateShop: (body: Record<string, unknown>) =>
     request<{ data: Shop }>('/api/shops', { method: 'PATCH', body: JSON.stringify(body) }),
   checkout: (body: { listing_id: string; method: 'mobile_money' | 'card' }) =>
-    request<{ checkout_url: string }>('/api/payments/checkout', { method: 'POST', body: JSON.stringify(body) }),
+    request<{ checkout_url?: string; payment_id?: string; status?: string; phone?: string }>('/api/payments/checkout', { method: 'POST', body: JSON.stringify(body) }),
+  paymentStatus: (paymentId: string) =>
+    request<{ data: { id: string; status: string; amount?: number; currency?: string } }>(`/api/payments/status?payment_id=${paymentId}`),
+  featurePrices: () =>
+    request<{ data: FeaturePriceMap; duration_days: number }>('/api/payments/feature-prices'),
+  adminFeaturePrices: () =>
+    request<{ data: FeaturePrice[]; amounts: FeaturePriceMap; duration_days: number; can_edit: boolean; missing: boolean }>('/api/admin/feature-prices'),
+  updateFeaturePrices: (prices: FeaturePriceMap) =>
+    request<{ data: FeaturePrice[]; amounts: FeaturePriceMap; duration_days: number; can_edit: boolean; missing: boolean }>('/api/admin/feature-prices', {
+      method: 'PATCH',
+      body: JSON.stringify({ prices }),
+    }),
   adminStats: (range?: string) => request<{ data: AdminStats }>(`/api/admin/stats${range ? `?range=${range}` : ''}`),
   adminUsers: (params?: string) => request<Paginated<Profile>>(`/api/admin/users${params ? `?${params}` : ''}`),
   adminUser: (id: string) => request<{ data: Profile; shop: Shop | null; listings: Listing[]; reports: Report[]; payments: Payment[]; conversation_count: number }>(`/api/admin/users/${id}`),

@@ -32,7 +32,7 @@ export async function PATCH(request: Request) {
 
   const updates: Record<string, unknown> = {}
   if (body.status) {
-    if (!['active', 'sold', 'archived', 'removed', 'pending', 'draft'].includes(body.status)) return jsonError('Invalid status.')
+    if (!['active', 'unavailable', 'sold', 'archived', 'removed', 'pending', 'draft'].includes(body.status)) return jsonError('Invalid status.')
     updates.status = body.status
   }
   if (body.featured_until === null) updates.featured_until = null

@@ -56,7 +56,7 @@ export function ListingsListView() {
       <div className="overflow-hidden rounded-[24px] border border-[#e2e9e5] bg-white shadow-[0_1px_0_rgba(36,62,57,0.03)]">
         <div className="border-b border-[#edf1ef] bg-[#fbfcfb] px-4 py-4 sm:px-5">
           <FilterBar search={q} onSearch={(value) => setParams({ q: value })} searchPlaceholder="Search title, location, or description">
-            <FilterSelect value={status} onChange={(value) => setParams({ status: value })} options={[{ value: 'all', label: 'All statuses' }, { value: 'active', label: 'Active' }, { value: 'pending', label: 'Pending' }, { value: 'draft', label: 'Draft' }, { value: 'sold', label: 'Sold' }, { value: 'archived', label: 'Archived' }, { value: 'removed', label: 'Removed' }]} />
+            <FilterSelect value={status} onChange={(value) => setParams({ status: value })} options={[{ value: 'all', label: 'All statuses' }, { value: 'active', label: 'Active' }, { value: 'unavailable', label: 'Unavailable' }, { value: 'pending', label: 'Pending' }, { value: 'draft', label: 'Draft' }, { value: 'sold', label: 'Sold' }, { value: 'archived', label: 'Archived' }, { value: 'removed', label: 'Removed' }]} />
             <FilterSelect value={category} onChange={(value) => setParams({ category: value })} options={[{ value: 'all', label: 'All categories' }, { value: 'Products', label: 'Products' }, { value: 'Services', label: 'Services' }, { value: 'Rentals', label: 'Rentals' }, { value: 'Gigs', label: 'Gigs' }]} />
             <FilterSelect value={featured} onChange={(value) => setParams({ featured: value })} options={[{ value: 'all', label: 'Any boost' }, { value: 'yes', label: 'Featured now' }]} />
           </FilterBar>

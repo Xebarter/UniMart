@@ -1,9 +1,9 @@
 import { dbError, jsonError, jsonOk, parseJson, rejectIfRestricted, requireUser } from '@/lib/api/http'
-import { createPaytotaPurchase } from '@/lib/payments/paytota'
+import { createPaytotaPurchase, executePaytotaCollection } from '@/lib/payments/paytota'
 import { createDpoToken } from '@/lib/payments/dpo'
+import { featurePriceFor, loadFeaturePrices } from '@/lib/payments/feature-prices'
 import { checkoutErrorMessage, parsePaymentMethod, providerForMethod } from '@/lib/payments/methods'
-
-const FEATURE_PRICE = Number(process.env.FEATURED_LISTING_PRICE_UGX ?? 15000)
+import { hasContactPhone } from '@/lib/phone'
 
 function appUrl() {
   return process.env.NEXT_PUBLIC_APP_URL || process.env.SITE_URL || 'http://localhost:3000'
@@ -20,9 +20,28 @@ export async function POST(request: Request) {
   if (!listingId) return jsonError('listing_id is required.')
   if (!method) return jsonError('Choose mobile money or card.')
   const provider = providerForMethod(method)
-  const { data: listing, error: listingError } = await auth.supabase.from('listings').select('id, title, owner_id').eq('id', listingId).maybeSingle()
+  const { data: listing, error: listingError } = await auth.supabase
+    .from('listings')
+    .select('id, title, owner_id, category')
+    .eq('id', listingId)
+    .maybeSingle()
   if (listingError) return dbError(listingError, 'Unable to load listing.')
   if (!listing || listing.owner_id !== auth.user.id) return jsonError('You can only promote your own listing.', 403)
+
+  const { data: owner } = await auth.supabase.from('profiles').select('phone_primary').eq('id', auth.user.id).maybeSingle()
+  const phone = owner?.phone_primary?.trim() ?? ''
+  if (method === 'mobile_money' && !hasContactPhone(phone)) {
+    return jsonError('Add a mobile money number on your profile first.', 400)
+  }
+
+  let amount: number
+  try {
+    const prices = await loadFeaturePrices(auth.supabase)
+    amount = featurePriceFor(prices.map, listing.category)
+  } catch (error) {
+    return dbError(error as { message?: string }, 'Unable to load feature prices.')
+  }
+  if (!amount) return jsonError('Feature pricing is not configured for this listing type.')
 
   const { data: payment, error } = await auth.supabase
     .from('payments')
@@ -31,7 +50,7 @@ export async function POST(request: Request) {
       listing_id: listingId,
       provider,
       purpose: 'listing_feature',
-      amount: FEATURE_PRICE,
+      amount,
       currency: 'UGX',
       status: 'pending',
     })
@@ -40,44 +59,50 @@ export async function POST(request: Request) {
   if (error || !payment) return dbError(error, 'Unable to create payment.', 400)
 
   const origin = appUrl()
-  const successUrl = process.env.PAYTOTA_SUCCESS_REDIRECT || `${origin}/payments/success?payment_id=${payment.id}`
-  const failureUrl = process.env.PAYTOTA_FAILURE_REDIRECT || `${origin}/payments/failure?payment_id=${payment.id}`
-  const cancelUrl = process.env.PAYTOTA_CANCEL_REDIRECT || `${origin}/payments/cancel?payment_id=${payment.id}`
+  const callbackBase = (process.env.DPO_BACK_URL || `${origin}/api/dpo/callback`).split('?')[0]
   const email = auth.user.email || 'student@unimart.app'
   const names = (auth.user.user_metadata?.display_name as string | undefined)?.split(' ') ?? ['UniMart', 'Student']
+  const description = `Feature ${listing.category}: ${listing.title}`
 
   try {
     if (method === 'mobile_money') {
       const purchase = await createPaytotaPurchase({
         email,
-        amount: FEATURE_PRICE,
+        phone,
+        amount,
         reference: payment.id,
-        description: `Feature listing: ${listing.title}`,
-        successUrl: `${successUrl}${successUrl.includes('?') ? '&' : '?'}payment_id=${payment.id}`,
-        failureUrl: `${failureUrl}${failureUrl.includes('?') ? '&' : '?'}payment_id=${payment.id}`,
-        cancelUrl: `${cancelUrl}${cancelUrl.includes('?') ? '&' : '?'}payment_id=${payment.id}`,
+        description,
       })
-      const checkoutUrl = purchase.checkout_url
-      if (!checkoutUrl) throw new Error('Unable to start mobile money checkout.')
-      await auth.supabase.from('payments').update({ provider_payment_id: purchase.id, checkout_url: checkoutUrl, raw: purchase }).eq('id', payment.id)
-      return jsonOk({ checkout_url: checkoutUrl }, 201)
+      const executed = await executePaytotaCollection(purchase.id)
+      await auth.supabase
+        .from('payments')
+        .update({ provider_payment_id: purchase.id, checkout_url: null, raw: { purchase, execute: executed } })
+        .eq('id', payment.id)
+      return jsonOk({ payment_id: payment.id, status: 'pending_execute', phone }, 201)
     }
 
     const cardCheckout = await createDpoToken({
-      amount: FEATURE_PRICE,
+      amount,
       reference: payment.id,
-      description: `Feature listing: ${listing.title}`,
+      description,
       email,
       firstName: names[0] || 'Student',
       lastName: names.slice(1).join(' ') || 'UniMart',
-      redirectUrl: `${origin}/api/dpo/callback?payment_id=${payment.id}`,
-      backUrl: `${origin}/api/dpo/callback?payment_id=${payment.id}`,
+      redirectUrl: `${origin}/payments/success?payment_id=${payment.id}`,
+      backUrl: `${callbackBase}?payment_id=${payment.id}`,
+      phone,
     })
-    await auth.supabase.from('payments').update({ provider_payment_id: cardCheckout.transToken, checkout_url: cardCheckout.checkoutUrl, raw: { xml: cardCheckout.raw } }).eq('id', payment.id)
-    return jsonOk({ checkout_url: cardCheckout.checkoutUrl }, 201)
+    await auth.supabase.from('payments').update({
+      provider_payment_id: cardCheckout.transToken,
+      provider_reference: cardCheckout.transRef || null,
+      checkout_url: cardCheckout.checkoutUrl,
+      raw: { xml: cardCheckout.raw, transRef: cardCheckout.transRef },
+    }).eq('id', payment.id)
+    return jsonOk({ payment_id: payment.id, checkout_url: cardCheckout.checkoutUrl }, 201)
   } catch (err) {
     console.error('[unimart:checkout]', method, err instanceof Error ? err.message : err)
     await auth.supabase.from('payments').update({ status: 'failed' }).eq('id', payment.id)
-    return jsonError(checkoutErrorMessage(method), 502)
+    const detail = err instanceof Error ? err.message : ''
+    return jsonError(detail || checkoutErrorMessage(method), 502)
   }
 }

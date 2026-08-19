@@ -4,6 +4,7 @@ const MAP: Record<string, { label: string; variant: 'default' | 'success' | 'war
   active: { label: 'Active', variant: 'success' },
   pending: { label: 'Pending', variant: 'warning' },
   draft: { label: 'Draft', variant: 'muted' },
+  unavailable: { label: 'Unavailable', variant: 'muted' },
   sold: { label: 'Sold', variant: 'default' },
   archived: { label: 'Archived', variant: 'muted' },
   removed: { label: 'Removed', variant: 'danger' },

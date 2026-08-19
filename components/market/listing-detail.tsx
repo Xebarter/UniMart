@@ -8,7 +8,6 @@ import {
   BadgeCheck,
   ChevronLeft,
   ChevronRight,
-  CreditCard,
   Eye,
   Flag,
   Heart,
@@ -17,7 +16,6 @@ import {
   Phone,
   Pencil,
   Share2,
-  Smartphone,
   Sparkles,
   Store,
   X,
@@ -26,6 +24,9 @@ import { ListingPhoto } from '@/components/listing-photo'
 import { Avatar } from '@/components/market/avatar'
 import { ListingShareSheet, ListingShareTrigger } from '@/components/market/listing-share'
 import { ListingCard } from '@/components/market/listing-card'
+import { PhoneContactGate } from '@/components/market/phone-contact-gate'
+import { FeaturePayButtons, useFeatureCheckout } from '@/components/market/use-feature-checkout'
+import { useFeaturePrices } from '@/components/market/use-feature-prices'
 import { useMarket } from '@/components/market/provider'
 import { api } from '@/lib/api-client'
 import { loginHref } from '@/lib/auth'
@@ -39,13 +40,24 @@ export function ListingDetail({ listing }: { listing: Listing }) {
   const router = useRouter()
   const { profile, saved, toggleSaved, notify, refresh, myShop, updateMyListing, listings } = useMarket()
   const [payOpen, setPayOpen] = useState(false)
+  const [phoneGate, setPhoneGate] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [payError, setPayError] = useState('')
+  const checkout = useFeatureCheckout({
+    listingId: listing.id,
+    onPaid: () => {
+      notify('Featured for 7 days.')
+      setPayOpen(false)
+      void refresh()
+    },
+    onNeedPhone: () => setPhoneGate(true),
+  })
   const [followingShop, setFollowingShop] = useState(false)
   const [sellerShop, setSellerShop] = useState<Shop | null>(null)
   const [shopId, setShopId] = useState(listing.shop_id ?? null)
   const [photoIndex, setPhotoIndex] = useState(0)
   const [shareOpen, setShareOpen] = useState(false)
+  const { amountFor, durationDays } = useFeaturePrices(payOpen)
+  const featurePrice = amountFor(listing.category)
   const isOwner = profile?.id === listing.owner_id
   const isSaved = saved.includes(listing.id)
   const shop = isOwner ? myShop : sellerShop
@@ -85,19 +97,6 @@ export function ListingDetail({ listing }: { listing: Listing }) {
       .then((result) => setFollowingShop(result.data.some((item) => item.id === listing.owner_id)))
       .catch(() => undefined)
   }, [isOwner, listing.owner_id, profile])
-
-  async function pay(method: 'mobile_money' | 'card') {
-    setBusy(true)
-    setPayError('')
-    try {
-      const result = await api.checkout({ listing_id: listing.id, method })
-      if (!result.checkout_url) throw new Error('Unable to start checkout. Please try again.')
-      window.location.href = result.checkout_url
-    } catch (err) {
-      setPayError(err instanceof Error ? err.message : 'Unable to start checkout. Please try again.')
-      setBusy(false)
-    }
-  }
 
   async function messageSeller() {
     if (!profile) {
@@ -293,7 +292,7 @@ export function ListingDetail({ listing }: { listing: Listing }) {
                 <>
                   <button
                     type="button"
-                    onClick={() => { setPayError(''); setPayOpen(true) }}
+                    onClick={() => { checkout.reset(); setPayOpen(true) }}
                     className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#d1734b] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#c26640]"
                   >
                     <Sparkles size={16} /> {featured ? 'Boost again' : 'Feature this listing'}
@@ -412,28 +411,32 @@ export function ListingDetail({ listing }: { listing: Listing }) {
 
       {payOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-          <button type="button" aria-label="Close" onClick={() => setPayOpen(false)} className="absolute inset-0 bg-[#0c1c19]/50 backdrop-blur-[6px]" />
+          <button type="button" aria-label="Close" onClick={() => { checkout.reset(); setPayOpen(false) }} className="absolute inset-0 bg-[#0c1c19]/50 backdrop-blur-[6px]" />
           <div className="relative w-full max-w-md rounded-t-[28px] border border-[#e5eae7] bg-white p-6 shadow-[0_24px_80px_rgba(8,24,20,0.28)] sm:rounded-[28px] sm:p-7">
-            <button type="button" aria-label="Close checkout" onClick={() => setPayOpen(false)} className="absolute right-4 top-4 flex size-9 items-center justify-center rounded-full border border-[#e5eae7] text-[#687b75] transition hover:bg-[#f7fbf9]">
+            <button type="button" aria-label="Close checkout" onClick={() => { checkout.reset(); setPayOpen(false) }} className="absolute right-4 top-4 flex size-9 items-center justify-center rounded-full border border-[#e5eae7] text-[#687b75] transition hover:bg-[#f7fbf9]">
               <X size={16} />
             </button>
             <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#d1734b]">Feature listing</p>
             <h2 className="mt-2 font-display text-2xl font-bold tracking-[-0.04em] text-[#243e39]">Get more eyes on this post</h2>
-            <p className="mt-2 text-sm leading-6 text-[#71827b]">Featured listings appear first in search. Pay with mobile money or a card.</p>
-            <div className="mt-5 grid grid-cols-2 gap-2">
-              <button type="button" disabled={busy} onClick={() => pay('mobile_money')} className="flex flex-col items-center gap-2 rounded-2xl border border-[#dfe7e3] bg-[#fbfcfb] px-3 py-4 text-xs font-bold text-[#315e55] transition hover:border-[#8bb4a7] disabled:opacity-60">
-                <span className="flex size-11 items-center justify-center rounded-2xl bg-[#e7f0ed] text-[#315e55]"><Smartphone size={20} /></span>
-                {busy ? 'Opening…' : 'Mobile money'}
-              </button>
-              <button type="button" disabled={busy} onClick={() => pay('card')} className="flex flex-col items-center gap-2 rounded-2xl border border-[#dfe7e3] bg-[#fbfcfb] px-3 py-4 text-xs font-bold text-[#315e55] transition hover:border-[#8bb4a7] disabled:opacity-60">
-                <span className="flex size-11 items-center justify-center rounded-2xl bg-[#fff5f0] text-[#d1734b]"><CreditCard size={20} /></span>
-                {busy ? 'Opening…' : 'Card'}
-              </button>
-            </div>
-            {payError && <p className="mt-3 text-[11px] font-medium text-[#c86c48]">{payError}</p>}
+            <p className="mt-2 text-sm leading-6 text-[#71827b]">Featured listings appear first in search. Mobile money is collected directly on your phone. Cards use DPO.</p>
+            {featurePrice != null && (
+              <p className="mt-3 font-display text-xl font-bold tracking-[-0.03em] text-[#243e39]">
+                {formatUGX(featurePrice)}
+                <span className="ml-1.5 text-sm font-semibold text-[#8b9994]">· {durationDays} days</span>
+              </p>
+            )}
+            <FeaturePayButtons checkout={checkout} />
           </div>
         </div>
       )}
+      <PhoneContactGate
+        open={phoneGate}
+        onClose={() => setPhoneGate(false)}
+        onSaved={() => {
+          setPhoneGate(false)
+          void checkout.pay('mobile_money')
+        }}
+      />
     </div>
   )
 }

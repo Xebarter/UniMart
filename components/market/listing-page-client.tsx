@@ -13,17 +13,28 @@ import type { Listing } from '@/lib/types'
 
 export function ListingPageClient({ initialListing }: { initialListing?: Listing | null }) {
   const { id } = useParams<{ id: string }>()
-  const { listings } = useMarket()
-  const cached = listings.find((item) => item.id === id) ?? initialListing ?? null
+  const { listings, myListings } = useMarket()
+  const cached = myListings.find((item) => item.id === id) ?? listings.find((item) => item.id === id) ?? initialListing ?? null
   const [listing, setListing] = useState<Listing | null>(cached)
   const [error, setError] = useState('')
 
   useEffect(() => {
     if (!id) return
     api.listing(id)
-      .then((result) => setListing(result.data))
+      .then((result) => {
+        setListing((current) => {
+          if (current && new Date(current.updated_at).getTime() > new Date(result.data.updated_at).getTime()) return current
+          return result.data
+        })
+      })
       .catch((err) => setError(err instanceof Error ? err.message : 'Listing not found.'))
   }, [id])
+
+  useEffect(() => {
+    const next = myListings.find((item) => item.id === id)
+    if (!next) return
+    setListing((current) => current ? { ...current, ...next } : next)
+  }, [id, myListings])
 
   if (error && !listing) {
     return (
