@@ -1,15 +1,14 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   ArrowLeft,
+  ArrowUpRight,
   Bell,
   Briefcase,
   CheckCheck,
-  Clock3,
-  Cog,
   FileText,
   Flag,
   Heart,
@@ -17,27 +16,23 @@ import {
   MessageCircle,
   Search,
   Send,
-  Shield,
   ShoppingBag,
-  Sparkles,
   UserPlus,
 } from 'lucide-react'
 import { Avatar } from '@/components/market/avatar'
 import { useMarket } from '@/components/market/provider'
 import { api } from '@/lib/api-client'
 import { createClient } from '@/lib/supabase/client'
-import { colorFromSeed, formatUGX, timeAgo } from '@/lib/format'
+import { colorFromSeed, timeAgo } from '@/lib/format'
 import { marketPaths } from '@/lib/market-paths'
 import { formatPhoneDisplay } from '@/lib/phone'
 import type { Conversation, GigApplication, Message, Notification } from '@/lib/types'
 
 const BODY_MAX = 4000
-const SUGGESTIONS = ['Is this still available?', 'Can we meet nearby?', 'What is the best price?']
-const GIG_SUGGESTIONS = ['When would you like me to start?', 'Is this still open?', 'Can we confirm the pay?']
+const SUGGESTIONS = ['Still available?', 'Can we meet nearby?', 'Best price?']
 
 type InboxFilter = 'all' | 'unread'
 type Panel = 'inbox' | 'alerts'
-type NotificationFilter = 'all' | 'unread' | 'messages' | 'activity' | 'account'
 
 function listingOf(conversation?: Conversation | null) {
   const listing = conversation?.listing as Conversation['listing'] | Conversation['listing'][] | null | undefined
@@ -45,11 +40,15 @@ function listingOf(conversation?: Conversation | null) {
   return listing ?? null
 }
 
+function isApplicationPreview(conversation: Conversation) {
+  return conversation.messages?.[0]?.kind === 'gig_application'
+}
+
 function previewOf(conversation: Conversation) {
   const last = conversation.messages?.[0]
   const listing = listingOf(conversation)
   if (last?.kind === 'gig_application') {
-    return listing?.title ? `Applied for ${listing.title}` : 'New gig application'
+    return listing?.title ? `Applied for ${listing.title}` : 'Gig application'
   }
   return last?.body?.trim() || 'No messages yet'
 }
@@ -57,8 +56,9 @@ function previewOf(conversation: Conversation) {
 function threadClock(value: string) {
   const date = new Date(value)
   const now = new Date()
-  const sameDay = date.toDateString() === now.toDateString()
-  if (sameDay) return date.toLocaleTimeString('en-UG', { hour: 'numeric', minute: '2-digit' })
+  if (date.toDateString() === now.toDateString()) {
+    return date.toLocaleTimeString('en-UG', { hour: 'numeric', minute: '2-digit' })
+  }
   const sameYear = date.getFullYear() === now.getFullYear()
   return date.toLocaleDateString('en-UG', { day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }) })
 }
@@ -86,19 +86,20 @@ function notificationIcon(type: string) {
   return Bell
 }
 
+function notificationKind(type: string) {
+  if (type === 'gig_application') return 'Application'
+  if (type === 'message') return 'Message'
+  if (type === 'sale') return 'Sale'
+  if (type === 'favorite') return 'Saved'
+  if (type === 'follow') return 'Follow'
+  return 'Alert'
+}
+
 function notificationHref(item: Notification) {
   if (item.path) return item.path
   if (item.conversation_id) return marketPaths.conversation(item.conversation_id)
   if (item.listing_id) return marketPaths.listing(item.listing_id)
   return marketPaths.messages
-}
-
-function matchesNotificationFilter(item: Notification, filter: NotificationFilter) {
-  if (filter === 'all') return true
-  if (filter === 'unread') return !item.read_at
-  if (filter === 'messages') return item.type === 'message' || item.type === 'gig_application'
-  if (filter === 'account') return item.type === 'account_notice' || item.type === 'report_update'
-  return item.type === 'sale' || item.type === 'favorite' || item.type === 'follow' || item.type === 'gig_application'
 }
 
 export function MessagesView({
@@ -114,26 +115,22 @@ export function MessagesView({
   const {
     profile,
     notifications,
-    notificationPreferences,
-    unreadMessages,
     unreadNotes,
     refresh,
     notify,
     markNotificationsRead,
     markNotificationRead,
-    saveNotificationPreferences,
   } = useMarket()
   const profileId = profile?.id
   const [messages, setMessages] = useState<Message[]>([])
+  const [gigApplication, setGigApplication] = useState<GigApplication | null>(null)
   const [draft, setDraft] = useState('')
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<InboxFilter>('all')
-  const [notificationFilter, setNotificationFilter] = useState<NotificationFilter>('all')
   const [loadingThread, setLoadingThread] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
   const [reporting, setReporting] = useState(false)
-  const [gigApplication, setGigApplication] = useState<GigApplication | null>(null)
   const scrollerRef = useRef<HTMLDivElement>(null)
   const composerRef = useRef<HTMLTextAreaElement>(null)
 
@@ -152,10 +149,7 @@ export function MessagesView({
   const conversationId = active?.id
   const listing = listingOf(active)
   const unreadInbox = conversations.filter((item) => (item.unread_count ?? 0) > 0).length
-  const visibleNotifications = useMemo(
-    () => notifications.filter((item) => matchesNotificationFilter(item, notificationFilter)),
-    [notificationFilter, notifications],
-  )
+  const chatMessages = messages.filter((item) => item.kind !== 'gig_application')
 
   useEffect(() => {
     if (panel === 'alerts') return
@@ -195,7 +189,7 @@ export function MessagesView({
   }, [conversationId, refresh])
 
   useEffect(() => {
-    if (!listing?.id || listing.category !== 'Gigs') {
+    if (!listing?.id || listing.category !== 'Gigs' || !conversationId) {
       setGigApplication(null)
       return
     }
@@ -203,8 +197,8 @@ export function MessagesView({
     api.gigApplications(listing.id)
       .then((result) => {
         if (cancelled) return
-        const match = [...result.data, result.mine].filter(Boolean).find((item) => item?.conversation_id === conversationId)
-        setGigApplication(match ?? result.mine ?? result.data[0] ?? null)
+        const match = result.data.find((item) => item.conversation_id === conversationId)
+        setGigApplication(match ?? (result.mine?.conversation_id === conversationId ? result.mine : null))
       })
       .catch(() => {
         if (!cancelled) setGigApplication(null)
@@ -216,7 +210,7 @@ export function MessagesView({
     const node = scrollerRef.current
     if (!node) return
     node.scrollTop = node.scrollHeight
-  }, [messages, conversationId])
+  }, [chatMessages, gigApplication, conversationId])
 
   useEffect(() => {
     if (!profileId) return
@@ -248,6 +242,13 @@ export function MessagesView({
     }, 12000)
     return () => window.clearInterval(timer)
   }, [profileId, refresh])
+
+  useEffect(() => {
+    const node = composerRef.current
+    if (!node) return
+    node.style.height = 'auto'
+    node.style.height = `${Math.min(node.scrollHeight, 112)}px`
+  }, [draft])
 
   async function send(body?: string) {
     const text = (body ?? draft).trim()
@@ -287,7 +288,7 @@ export function MessagesView({
         reason: 'Conversation concern',
         details: 'Reported from the messages inbox.',
       })
-      notify('Report submitted. Our team will review it.')
+      notify('Report submitted.')
     } catch (err) {
       notify(err instanceof Error ? err.message : 'Unable to submit that report.')
     } finally {
@@ -300,47 +301,28 @@ export function MessagesView({
     router.push(notificationHref(item))
   }
 
-  return (
-    <div data-no-tab-swipe className="mx-auto flex h-[calc(100svh-4rem-4.75rem-env(safe-area-inset-bottom,0px))] w-full max-w-[1280px] flex-col bg-[linear-gradient(180deg,#f9fbfa_0%,#f6faf8_100%)] px-2 pt-2 sm:px-6 sm:pt-3 lg:h-[calc(100svh-72px)] lg:px-8 lg:pt-5">
-      <header className={`mb-2 shrink-0 items-end justify-between gap-3 sm:mb-4 ${activeId && panel === 'inbox' ? 'hidden lg:flex' : 'flex'}`}>
-        <div className="min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#d1734b]">Inbox</p>
-          <h1 className="mt-1 font-display text-xl font-bold tracking-[-0.035em] text-[#243e39] sm:text-2xl">Messages</h1>
-          <p className="mt-1 hidden text-xs text-[#8b9994] sm:block">
-            {unreadMessages ? `${unreadMessages} unread message${unreadMessages === 1 ? '' : 's'}` : 'You are caught up on chats'}
-            {unreadNotes ? ` · ${unreadNotes} notification${unreadNotes === 1 ? '' : 's'}` : ''}
-          </p>
-        </div>
-        <div className="hidden shrink-0 items-center gap-2 xl:flex">
-          <div className="rounded-2xl border border-[#e5eae7] bg-white px-3 py-2 text-right shadow-[0_8px_24px_rgba(36,62,57,0.04)]">
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#8b9994]">Chats</p>
-            <p className="mt-1 text-sm font-bold text-[#243e39]">{unreadMessages || 0}</p>
-          </div>
-          <div className="rounded-2xl border border-[#e5eae7] bg-white px-3 py-2 text-right shadow-[0_8px_24px_rgba(36,62,57,0.04)]">
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#8b9994]">Alerts</p>
-            <p className="mt-1 text-sm font-bold text-[#243e39]">{unreadNotes || 0}</p>
-          </div>
-        </div>
-        <div className="flex shrink-0 rounded-2xl border border-[#e5eae7] bg-white/95 p-1 shadow-[0_8px_24px_rgba(36,62,57,0.05)] xl:hidden">
-          <Link
-            href={marketPaths.messages}
-            className={`inline-flex h-10 items-center gap-1.5 rounded-xl px-3.5 text-[11px] font-bold ${panel === 'inbox' ? 'bg-[#315e55] text-white' : 'text-[#638076]'}`}
-          >
-            <Inbox size={13} /> Chats
-            {unreadInbox > 0 ? <span className="rounded-full bg-white/20 px-1.5">{unreadInbox}</span> : null}
-          </Link>
-          <Link
-            href={marketPaths.messageAlerts}
-            className={`inline-flex h-10 items-center gap-1.5 rounded-xl px-3.5 text-[11px] font-bold ${panel === 'alerts' ? 'bg-[#315e55] text-white' : 'text-[#638076]'}`}
-          >
-            <Bell size={13} /> Notifications
-            {unreadNotes > 0 ? <span className="rounded-full bg-[#d1734b] px-1.5 text-white">{unreadNotes}</span> : null}
-          </Link>
-        </div>
-      </header>
+  async function openResume(application: GigApplication) {
+    if (!listing?.id) return
+    try {
+      const result = await api.gigResumeUrl(listing.id, application.id)
+      window.open(result.url, '_blank', 'noopener,noreferrer')
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Unable to open this resume.')
+    }
+  }
 
-      <div className="grid min-h-0 flex-1 gap-2 pb-2 sm:gap-3 sm:pb-3 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1fr)_280px]">
-        <div className={`h-full min-h-0 ${panel === 'alerts' || activeId ? 'hidden lg:flex lg:flex-col' : 'flex flex-col'}`}>
+  const showInbox = panel === 'alerts' ? false : !activeId
+  const showThread = panel !== 'alerts' && Boolean(activeId)
+  const showAlerts = panel === 'alerts'
+
+  return (
+    <div
+      data-no-tab-swipe
+      className="relative mx-auto flex h-[calc(100svh-4rem-4.75rem-env(safe-area-inset-bottom,0px))] w-full max-w-[1320px] flex-col px-0 pt-0 sm:px-5 sm:pt-4 lg:h-[calc(100svh-72px)] lg:px-7 lg:pt-5 lg:pb-5"
+    >
+      <div className="pointer-events-none absolute inset-x-0 top-0 hidden h-48 bg-[radial-gradient(ellipse_at_top,rgba(49,94,85,0.07),transparent_70%)] lg:block" />
+      <div className="relative grid min-h-0 flex-1 bg-white lg:grid-cols-[minmax(300px,360px)_minmax(0,1fr)] lg:overflow-hidden lg:rounded-[28px] lg:border lg:border-[#dfe7e3] lg:shadow-[0_28px_80px_rgba(36,62,57,0.08)] xl:grid-cols-[minmax(300px,340px)_minmax(0,1fr)_minmax(300px,340px)]">
+        <div className={`h-full min-h-0 border-[#eef3f0] ${showInbox ? 'flex flex-col' : 'hidden lg:flex lg:flex-col'} lg:border-r`}>
           <InboxPane
             conversations={filtered}
             total={conversations.length}
@@ -348,89 +330,95 @@ export function MessagesView({
             query={query}
             filter={filter}
             unreadInbox={unreadInbox}
+            unreadNotes={unreadNotes}
             onQuery={setQuery}
             onFilter={setFilter}
           />
         </div>
 
-        <div className={`h-full min-h-0 ${panel === 'alerts' ? 'hidden xl:flex xl:flex-col' : activeId ? 'flex flex-col' : 'hidden lg:flex lg:flex-col'}`}>
-          <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[24px] border border-[#e5eae7] bg-white shadow-[0_12px_36px_rgba(36,62,57,0.05)] sm:rounded-[26px]">
+        <div className={`h-full min-h-0 ${showAlerts ? 'hidden xl:flex xl:flex-col' : showThread ? 'flex flex-col' : 'hidden lg:flex lg:flex-col'}`}>
+          <section className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#f6f9f8]">
             {active ? (
               <>
                 <ThreadHeader
                   conversation={active}
                   listing={listing}
-                  application={gigApplication}
                   reporting={reporting}
                   onReport={() => void reportUser()}
                 />
-                <div ref={scrollerRef} className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4 sm:px-5">
-                  {loadingThread ? (
-                    <div className="space-y-3 pt-6">
-                      <div className="h-10 w-2/3 animate-pulse rounded-2xl bg-[#eef4f1]" />
-                      <div className="ml-auto h-10 w-1/2 animate-pulse rounded-2xl bg-[#e7eeeb]" />
-                      <div className="h-16 w-3/4 animate-pulse rounded-2xl bg-[#eef4f1]" />
+                <div ref={scrollerRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+                  {gigApplication ? (
+                    <div className="mb-5">
+                      <ApplicationCard application={gigApplication} onResume={() => void openResume(gigApplication)} />
                     </div>
-                  ) : messages.length || gigApplication ? (
-                    <>
-                      {gigApplication ? <GigApplicationCard application={gigApplication} listingId={listing?.id} /> : null}
-                      {messages.filter((message) => message.kind !== 'gig_application').map((message, index, thread) => {
+                  ) : null}
+                  {loadingThread ? (
+                    <div className="space-y-3 pt-2">
+                      <div className="h-11 w-2/3 animate-pulse rounded-[22px] bg-white/80" />
+                      <div className="ml-auto h-11 w-1/2 animate-pulse rounded-[22px] bg-white" />
+                    </div>
+                  ) : chatMessages.length ? (
+                    chatMessages.map((message, index, thread) => {
                       const mine = message.sender_id === profileId
                       const previous = thread[index - 1]
                       const showDay = !previous || !sameDay(previous.created_at, message.created_at)
+                      const grouped = Boolean(previous && previous.sender_id === message.sender_id && !showDay)
                       return (
-                        <div key={message.id}>
+                        <div key={message.id} className={grouped ? 'mt-1' : 'mt-3.5'}>
                           {showDay ? (
-                            <p className="my-4 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-[#9aa7a2]">{dayLabel(message.created_at)}</p>
+                            <div className="mb-3.5 mt-1 flex justify-center">
+                              <span className="rounded-full border border-[#e5eae7] bg-white/90 px-3 py-1 text-[10px] font-semibold tracking-[0.04em] text-[#7d8f88] shadow-[0_1px_2px_rgba(36,62,57,0.04)]">
+                                {dayLabel(message.created_at)}
+                              </span>
+                            </div>
                           ) : null}
                           <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[90%] rounded-[22px] px-3.5 py-2.5 shadow-[0_6px_16px_rgba(36,62,57,0.04)] sm:max-w-[72%] ${mine ? 'rounded-br-md bg-[#315e55] text-white' : 'rounded-bl-md bg-[#f3f7f5] text-[#243e39]'}`}>
-                              <p className="whitespace-pre-wrap text-[13px] leading-6">{message.body}</p>
-                              <p className={`mt-1 text-[10px] font-medium ${mine ? 'text-white/65' : 'text-[#8b9994]'}`}>{threadClock(message.created_at)}</p>
+                            <div
+                              className={`max-w-[86%] px-4 py-2.5 sm:max-w-[68%] ${
+                                mine
+                                  ? 'rounded-[22px] rounded-br-md bg-[#315e55] text-white shadow-[0_8px_20px_rgba(49,94,85,0.18)]'
+                                  : 'rounded-[22px] rounded-bl-md border border-[#e7eeeb] bg-white text-[#243e39] shadow-[0_6px_18px_rgba(36,62,57,0.04)]'
+                              }`}
+                            >
+                              <p className="whitespace-pre-wrap text-[13.5px] leading-[1.55]">{message.body}</p>
+                              <p className={`mt-1.5 text-[10px] ${mine ? 'text-white/50' : 'text-[#93a29c]'}`}>{threadClock(message.created_at)}</p>
                             </div>
                           </div>
                         </div>
                       )
-                    })}
-                    </>
-                  ) : (
+                    })
+                  ) : !gigApplication ? (
                     <div className="flex h-full min-h-[220px] flex-col items-center justify-center px-6 text-center">
-                      <span className="flex size-12 items-center justify-center rounded-2xl bg-[#fff6f1] text-[#d1734b]"><Sparkles size={20} /></span>
-                      <h2 className="mt-4 font-display text-lg font-bold text-[#29463f]">Start the conversation</h2>
-                      <p className="mt-2 max-w-sm text-sm leading-6 text-[#748780]">
-                        {listing?.category === 'Gigs'
-                          ? `Ask about ${listing.title}. Apply from the gig page if you have not already.`
-                          : listing ? `Ask about ${listing.title}. A short, clear first message usually gets a faster reply.` : 'Send a short first message. Be clear about what you need.'}
-                      </p>
+                      <span className="flex size-14 items-center justify-center rounded-2xl bg-white text-[#315e55] shadow-[0_10px_30px_rgba(36,62,57,0.06)]">
+                        <MessageCircle size={22} />
+                      </span>
+                      <p className="mt-4 font-display text-lg font-bold tracking-[-0.03em] text-[#243e39]">Start the conversation</p>
                       {listing && listing.category !== 'Gigs' ? (
                         <div className="mt-4 flex flex-wrap justify-center gap-2">
                           {SUGGESTIONS.map((item) => (
-                            <button key={item} type="button" onClick={() => void send(item)} className="rounded-full border border-[#e5eae7] bg-white px-3 py-1.5 text-[11px] font-bold text-[#526861] hover:border-[#b8d1c9]">
-                              {item}
-                            </button>
-                          ))}
-                        </div>
-                      ) : listing?.category === 'Gigs' && !gigApplication ? (
-                        <div className="mt-4 flex flex-wrap justify-center gap-2">
-                          {GIG_SUGGESTIONS.map((item) => (
-                            <button key={item} type="button" onClick={() => void send(item)} className="rounded-full border border-[#e5eae7] bg-white px-3 py-1.5 text-[11px] font-bold text-[#526861] hover:border-[#b8d1c9]">
+                            <button
+                              key={item}
+                              type="button"
+                              onClick={() => void send(item)}
+                              className="rounded-full border border-[#dfe7e3] bg-white px-3.5 py-2 text-[12px] font-semibold text-[#526861] shadow-[0_1px_2px_rgba(36,62,57,0.04)] transition hover:border-[#b8d1c9] hover:text-[#243e39]"
+                            >
                               {item}
                             </button>
                           ))}
                         </div>
                       ) : null}
                     </div>
-                  )}
+                  ) : null}
                 </div>
                 <form
-                  className="shrink-0 border-t border-[#eef3f0] bg-[#fbfcfb]/98 px-3 py-3 backdrop-blur sm:px-4"
+                  className="shrink-0 bg-gradient-to-t from-[#f6f9f8] via-[#f6f9f8] to-transparent px-4 pb-4 pt-1 sm:px-5"
                   onSubmit={(event: FormEvent) => {
                     event.preventDefault()
                     void send()
                   }}
                 >
-                  {error ? <p role="alert" className="mb-2 text-[12px] text-[#b85a38]">{error}</p> : null}
-                  <div className="flex items-end gap-2">
+                  {error ? <p role="alert" className="mb-2 px-1 text-[12px] text-[#b85a38]">{error}</p> : null}
+                  <div className="flex items-end gap-2 rounded-[22px] border border-[#dfe7e3] bg-white p-2 shadow-[0_10px_30px_rgba(36,62,57,0.06)]">
                     <textarea
                       ref={composerRef}
                       value={draft}
@@ -438,18 +426,21 @@ export function MessagesView({
                       maxLength={BODY_MAX}
                       onChange={(event) => setDraft(event.target.value)}
                       onKeyDown={onComposerKey}
-                      placeholder="Write a message…"
-                      className="max-h-28 min-h-12 flex-1 resize-none rounded-2xl border border-[#e5eae7] bg-white px-3.5 py-3 text-sm leading-6 outline-none focus:border-[#86aa9e] focus:ring-2 focus:ring-[#dcebe6]"
+                      placeholder="Write a message"
+                      className="max-h-28 min-h-10 flex-1 resize-none bg-transparent px-3 py-2.5 text-sm leading-5 outline-none placeholder:text-[#9aa7a2]"
                     />
                     <button
                       type="submit"
                       disabled={sending || !draft.trim()}
-                      className="inline-flex h-12 shrink-0 items-center gap-1.5 rounded-2xl bg-[#315e55] px-4 text-xs font-bold text-white hover:bg-[#274c44] disabled:opacity-50"
+                      aria-label={sending ? 'Sending' : 'Send'}
+                      className="inline-flex size-10 shrink-0 items-center justify-center rounded-2xl bg-[#315e55] text-white transition hover:bg-[#274c44] disabled:bg-[#d7e2de] disabled:text-[#8b9994]"
                     >
-                      <Send size={14} /> {sending ? 'Sending' : 'Send'}
+                      <Send size={15} />
                     </button>
                   </div>
-                  <p className="mt-2 text-[10px] text-[#9aa7a2]">Enter to send · Shift + Enter for a new line · {draft.length}/{BODY_MAX}</p>
+                  {draft.length > BODY_MAX - 400 ? (
+                    <p className="mt-1.5 text-right text-[10px] text-[#9aa7a2]">{draft.length}/{BODY_MAX}</p>
+                  ) : null}
                 </form>
               </>
             ) : (
@@ -458,21 +449,21 @@ export function MessagesView({
           </section>
         </div>
 
-        <div className={`h-full min-h-0 ${panel === 'alerts' ? 'flex flex-col' : 'hidden xl:flex xl:flex-col'}`}>
+        <div className={`h-full min-h-0 border-[#eef3f0] ${showAlerts ? 'flex flex-col' : 'hidden xl:flex xl:flex-col'} xl:border-l`}>
           <AlertsPane
-            notifications={visibleNotifications}
+            notifications={notifications}
             unreadNotes={unreadNotes}
-            preferences={notificationPreferences}
-            filter={notificationFilter}
-            onFilter={setNotificationFilter}
             onOpen={(item) => void openAlert(item)}
             onMarkAll={() => void markNotificationsRead()}
-            onSavePreferences={(updates) => void saveNotificationPreferences(updates)}
           />
         </div>
       </div>
     </div>
   )
+}
+
+function iconBtn(active = false) {
+  return `flex size-9 shrink-0 items-center justify-center rounded-full transition ${active ? 'bg-[#315e55] text-white' : 'text-[#6a7d76] hover:bg-[#f1f6f3] hover:text-[#243e39]'}`
 }
 
 function InboxPane({
@@ -482,6 +473,7 @@ function InboxPane({
   query,
   filter,
   unreadInbox,
+  unreadNotes,
   onQuery,
   onFilter,
 }: {
@@ -491,186 +483,234 @@ function InboxPane({
   query: string
   filter: InboxFilter
   unreadInbox: number
+  unreadNotes: number
   onQuery: (value: string) => void
   onFilter: (value: InboxFilter) => void
 }) {
   return (
-    <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-[24px] border border-[#e5eae7] bg-white shadow-[0_12px_36px_rgba(36,62,57,0.05)] sm:rounded-[26px]">
-      <div className="shrink-0 border-b border-[#eef3f0] p-3 sm:p-4">
-        <div className="relative">
-          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#8b9994]" />
+    <aside className="flex h-full min-h-0 flex-col overflow-hidden bg-white">
+      <header className="shrink-0 border-b border-[#eef3f0] px-4 pb-3.5 pt-4 sm:px-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#d1734b]">Workspace</p>
+            <h1 className="mt-1 font-display text-[1.35rem] font-bold tracking-[-0.04em] text-[#243e39]">Inbox</h1>
+          </div>
+          <div className="flex items-center gap-1">
+            <Link href={marketPaths.messageAlerts} aria-label="Notifications" className={`${iconBtn()} relative xl:hidden`}>
+              <Bell size={16} />
+              {unreadNotes > 0 ? <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-[#d1734b]" /> : null}
+            </Link>
+          </div>
+        </div>
+        <div className="mt-3.5 flex gap-1 rounded-full bg-[#f3f7f5] p-1">
+          <FilterChip active={filter === 'all'} onClick={() => onFilter('all')}>All</FilterChip>
+          <FilterChip active={filter === 'unread'} onClick={() => onFilter('unread')}>
+            Unread{unreadInbox ? ` · ${unreadInbox}` : ''}
+          </FilterChip>
+        </div>
+        <label className="relative mt-3 block">
+          <Search size={14} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8b9994]" />
           <input
             value={query}
             onChange={(event) => onQuery(event.target.value)}
-            placeholder="Search people or listings"
-            className="h-10 w-full rounded-xl border border-[#e5eae7] bg-[#fbfcfb] pl-9 pr-3 text-sm outline-none focus:border-[#86aa9e] focus:ring-2 focus:ring-[#dcebe6]"
+            placeholder="Search"
+            className="h-11 w-full rounded-2xl border border-[#e5eae7] bg-[#fbfcfb] pl-10 pr-3 text-[13px] outline-none transition placeholder:text-[#9aa7a2] focus:border-[#86aa9e] focus:bg-white"
           />
-        </div>
-        <div className="mt-3 flex gap-1.5">
-          {([
-            { id: 'all', label: 'All' },
-            { id: 'unread', label: unreadInbox ? `Unread (${unreadInbox})` : 'Unread' },
-          ] as { id: InboxFilter; label: string }[]).map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => onFilter(item.id)}
-              className={`h-9 rounded-full px-3 text-[11px] font-bold ${filter === item.id ? 'bg-[#315e55] text-white' : 'border border-[#e5eae7] text-[#638076] hover:bg-[#f7fbf9]'}`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
+        </label>
+      </header>
+      <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
         {conversations.map((item) => {
-          const listing = listingOf(item)
           const unread = item.unread_count ?? 0
-          const active = item.id === activeId
+          const selected = item.id === activeId
+          const application = isApplicationPreview(item)
           return (
             <Link
               key={item.id}
               href={marketPaths.conversation(item.id)}
-              className={`mb-1 flex items-start gap-3 rounded-2xl px-3 py-3 transition ${active ? 'bg-[#e7f0ed] shadow-[inset_0_0_0_1px_rgba(49,94,85,0.05)]' : 'hover:bg-[#f6f9f8]'}`}
+              className={`flex items-center gap-3 rounded-[18px] px-2.5 py-2.5 transition ${
+                selected
+                  ? 'bg-[#edf4f1] shadow-[inset_0_0_0_1px_rgba(49,94,85,0.08)]'
+                  : 'hover:bg-[#f7faf9]'
+              }`}
             >
               <span className="relative shrink-0">
                 <Avatar name={item.other?.display_name} color={colorFromSeed(item.other?.id || item.id)} image={item.other?.avatar_url} />
                 {unread > 0 ? <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-[#d1734b] ring-2 ring-white" /> : null}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="flex items-center justify-between gap-2">
-                  <span className={`truncate text-sm ${unread ? 'font-bold text-[#243e39]' : 'font-semibold text-[#29463f]'}`}>{item.other?.display_name ?? 'Conversation'}</span>
-                  <span className="shrink-0 text-[10px] text-[#9aa7a2]">{timeAgo(item.updated_at)}</span>
+                <span className="flex items-baseline justify-between gap-2">
+                  <span className={`truncate text-[13.5px] ${unread || selected ? 'font-bold text-[#243e39]' : 'font-semibold text-[#2f4a43]'}`}>
+                    {item.other?.display_name ?? 'Chat'}
+                  </span>
+                  <span className={`shrink-0 text-[10px] ${unread ? 'font-semibold text-[#d1734b]' : 'text-[#9aa7a2]'}`}>{timeAgo(item.updated_at)}</span>
                 </span>
-                <span className={`mt-0.5 block truncate text-[12px] ${unread ? 'font-medium text-[#526861]' : 'text-[#8b9994]'}`}>{previewOf(item)}</span>
-                <span className="mt-1 flex items-center gap-2">
-                  {listing ? <span className="inline-flex max-w-full items-center gap-1 truncate rounded-full bg-[#fff6f1] px-2 py-0.5 text-[10px] font-bold text-[#d1734b]"><ShoppingBag size={10} /> {listing.title}</span> : null}
-                  {listing?.category === 'Gigs' ? <span className="inline-flex rounded-full bg-[#edf6f1] px-2 py-0.5 text-[10px] font-bold text-[#315e55]">Application</span> : null}
-                  {unread > 0 ? <span className="inline-flex rounded-full bg-[#edf6f1] px-2 py-0.5 text-[10px] font-bold text-[#315e55]">New</span> : null}
+                <span className="mt-0.5 flex items-center gap-1.5">
+                  {application ? (
+                    <span className="inline-flex shrink-0 items-center rounded-full bg-white px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em] text-[#315e55]">Applied</span>
+                  ) : null}
+                  <span className={`min-w-0 truncate text-[12px] leading-4 ${unread ? 'text-[#526861]' : 'text-[#8b9994]'}`}>
+                    {previewOf(item)}
+                  </span>
                 </span>
               </span>
-              {unread > 1 ? <span className="mt-1 flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[#d1734b] px-1.5 text-[10px] font-bold text-white">{unread}</span> : null}
+              {unread > 1 ? (
+                <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[#d1734b] px-1.5 text-[10px] font-bold text-white">
+                  {unread}
+                </span>
+              ) : null}
             </Link>
           )
         })}
         {!conversations.length ? (
-          <div className="px-4 py-16 text-center">
-            <Inbox className="mx-auto text-[#d1734b]" size={22} />
-            <p className="mt-3 text-sm font-bold text-[#29463f]">{total ? 'No matches in this filter.' : 'No conversations yet.'}</p>
-            <p className="mt-1 text-sm leading-6 text-[#748780]">{total ? 'Try another search or show all chats.' : 'Message a seller from a listing to start one.'}</p>
-            {!total ? (
-              <Link href={marketPaths.home} className="mt-4 inline-flex h-10 items-center rounded-xl bg-[#315e55] px-4 text-xs font-bold text-white">Browse listings</Link>
-            ) : null}
-          </div>
+          <EmptyPane
+            icon={<Inbox size={20} />}
+            title={total ? 'No unread chats' : 'No chats yet'}
+            action={total ? (
+              <button type="button" onClick={() => onFilter('all')} className="mt-3 text-xs font-bold text-[#315e55]">
+                Show all
+              </button>
+            ) : (
+              <Link href={marketPaths.home} className="mt-4 inline-flex h-10 items-center rounded-xl bg-[#315e55] px-4 text-xs font-bold text-white">
+                Browse
+              </Link>
+            )}
+          />
         ) : null}
       </div>
     </aside>
   )
 }
 
+function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`h-8 flex-1 rounded-full text-[12px] font-bold transition ${
+        active ? 'bg-white text-[#243e39] shadow-[0_1px_4px_rgba(36,62,57,0.08)]' : 'text-[#6a7d76] hover:text-[#243e39]'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
 function ThreadHeader({
   conversation,
   listing,
-  application,
   reporting,
   onReport,
 }: {
   conversation: Conversation
   listing: NonNullable<Conversation['listing']> | null
-  application?: GigApplication | null
   reporting: boolean
   onReport: () => void
 }) {
   return (
-    <div className="shrink-0 border-b border-[#eef3f0] bg-white/98 px-3 py-3 backdrop-blur sm:px-5">
-      <div className="flex items-center gap-3">
-        <Link href={marketPaths.messages} className="flex size-10 shrink-0 items-center justify-center rounded-2xl border border-[#e5eae7] text-[#638076] lg:hidden">
-          <ArrowLeft size={16} />
-        </Link>
-        <Avatar name={conversation.other?.display_name} color={colorFromSeed(conversation.other?.id || conversation.id)} image={conversation.other?.avatar_url} />
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-display text-base font-bold text-[#243e39]">{conversation.other?.display_name ?? 'Conversation'}</p>
-          <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-[#8b9994]">
-            <Clock3 size={11} /> Active {timeAgo(conversation.updated_at)}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onReport}
-          disabled={reporting || !conversation.other?.id}
-          className="inline-flex h-10 items-center gap-1.5 rounded-2xl border border-[#e5eae7] px-3 text-[11px] font-bold text-[#8b9994] hover:text-[#9a4f32] disabled:opacity-50"
-        >
-          <Flag size={13} /> <span className="hidden sm:inline">{reporting ? 'Reporting…' : 'Report'}</span>
-        </button>
+    <header className="flex shrink-0 items-center gap-3 border-b border-[#e5eae7]/80 bg-white/80 px-4 py-3.5 backdrop-blur-md sm:px-5">
+      <Link href={marketPaths.messages} aria-label="Back to chats" className={`${iconBtn()} lg:hidden`}>
+        <ArrowLeft size={16} />
+      </Link>
+      <Avatar
+        name={conversation.other?.display_name}
+        color={colorFromSeed(conversation.other?.id || conversation.id)}
+        image={conversation.other?.avatar_url}
+      />
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-display text-[15px] font-bold tracking-[-0.02em] text-[#243e39]">
+          {conversation.other?.display_name ?? 'Chat'}
+        </p>
+        {listing ? (
+          <Link
+            href={marketPaths.listing(listing.id)}
+            className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full bg-[#edf4f0] px-2 py-0.5 text-[10px] font-bold text-[#315e55] transition hover:bg-[#e3eee9]"
+          >
+            <span className="truncate">{listing.category === 'Gigs' ? 'Gig' : listing.category} · {listing.title}</span>
+            <ArrowUpRight size={11} className="shrink-0" />
+          </Link>
+        ) : (
+          <p className="mt-0.5 text-[11px] font-medium text-[#8b9994]">Direct message</p>
+        )}
       </div>
-      {listing ? (
-        <Link href={marketPaths.listing(listing.id)} className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-[#eef3f0] bg-[#f8fbf9] px-3 py-2.5 transition hover:border-[#c8dbd4]">
-          <span className="min-w-0">
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#315e55]">
-              {listing.category === 'Gigs' ? <Briefcase size={11} /> : <ShoppingBag size={11} />} {listing.category}
-              {listing.category === 'Gigs' ? ' · Application' : ''}
-            </span>
-            <span className="mt-0.5 block truncate text-sm font-bold text-[#243e39]">{listing.title}</span>
-          </span>
-          <span className="shrink-0 text-sm font-bold text-[#d1734b]">{formatUGX(Number(listing.price))}</span>
-        </Link>
-      ) : null}
-      <p className="mt-3 flex items-start gap-2 text-[11px] leading-5 text-[#8b9994]">
-        <Shield size={12} className="mt-0.5 shrink-0 text-[#d1734b]" />
-        {listing?.category === 'Gigs' || application
-          ? 'Keep payment details off this chat until you have confirmed the work in person. UniMart does not employ applicants.'
-          : 'Keep PINs and passwords off this chat. Meet in a public place and confirm the item before you pay.'}
-      </p>
-    </div>
+      <button
+        type="button"
+        onClick={onReport}
+        disabled={reporting || !conversation.other?.id}
+        aria-label={reporting ? 'Reporting' : 'Report'}
+        className={`${iconBtn()} hover:text-[#9a4f32] disabled:opacity-40`}
+      >
+        <Flag size={15} />
+      </button>
+    </header>
   )
 }
 
-function GigApplicationCard({ application, listingId }: { application: GigApplication; listingId?: string }) {
-  const [opening, setOpening] = useState(false)
-
-  async function openResume() {
-    if (!listingId) return
-    setOpening(true)
-    try {
-      const result = await api.gigResumeUrl(listingId, application.id)
-      window.open(result.url, '_blank', 'noopener,noreferrer')
-    } finally {
-      setOpening(false)
-    }
-  }
-
+function ApplicationCard({
+  application,
+  onResume,
+}: {
+  application: GigApplication
+  onResume: () => void
+}) {
+  const campus = [application.university || application.profiles?.university, application.campus || application.profiles?.campus].filter(Boolean).join(' · ')
   return (
-    <div className="mb-4 rounded-[22px] border border-[#dfe7e3] bg-[#f8fbf9] p-4">
-      <p className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#315e55]">
-        <Briefcase size={11} /> Gig application
-      </p>
-      <p className="mt-2 font-display text-lg font-bold text-[#243e39]">{application.profiles?.display_name || application.name}</p>
-      <p className="mt-1 text-[12px] text-[#748780]">
-        {[application.university, application.campus].filter(Boolean).join(' · ') || 'Student'}
-        {application.student_number ? ` · ${application.student_number}` : ''}
-      </p>
-      {application.phone ? <p className="mt-1 text-[12px] font-semibold text-[#29463f]">{formatPhoneDisplay(application.phone)}</p> : null}
+    <article className="overflow-hidden rounded-[22px] border border-[#e5eae7] bg-white shadow-[0_10px_28px_rgba(36,62,57,0.05)]">
+      <div className="flex items-start gap-3 px-4 py-4">
+        <Avatar
+          name={application.profiles?.display_name || application.name}
+          color={colorFromSeed(application.applicant_id)}
+          image={application.profiles?.avatar_url}
+        />
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#d1734b]">Application</p>
+          <p className="mt-0.5 font-display text-[15px] font-bold tracking-[-0.02em] text-[#243e39]">
+            {application.profiles?.display_name || application.name}
+          </p>
+          <p className="mt-0.5 truncate text-[12px] text-[#748780]">
+            {[campus || 'Student', application.student_number].filter(Boolean).join(' · ')}
+          </p>
+          {application.phone ? (
+            <p className="mt-0.5 text-[12px] font-semibold text-[#526861]">{formatPhoneDisplay(application.phone)}</p>
+          ) : null}
+        </div>
+      </div>
       {application.cover_letter ? (
-        <p className="mt-3 whitespace-pre-wrap text-[13px] leading-6 text-[#5f746c]">{application.cover_letter}</p>
+        <p className="border-t border-[#eef3f0] px-4 py-3 text-[13px] leading-6 text-[#5f746c]">{application.cover_letter}</p>
       ) : null}
-      <button
-        type="button"
-        onClick={() => void openResume()}
-        disabled={opening || !listingId}
-        className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#315e55] px-3 text-[11px] font-bold text-white disabled:opacity-50"
-      >
-        <FileText size={13} /> {opening ? 'Opening…' : 'Download resume'}
-      </button>
-    </div>
+      <div className="border-t border-[#eef3f0] px-4 py-3">
+        <button
+          type="button"
+          onClick={onResume}
+          className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#315e55] px-3.5 text-[12px] font-bold text-white transition hover:bg-[#274c44]"
+        >
+          <FileText size={13} /> Resume
+        </button>
+      </div>
+    </article>
   )
 }
 
 function EmptyThread() {
   return (
-    <div className="flex h-full flex-col items-center justify-center px-8 text-center">
-      <span className="flex size-14 items-center justify-center rounded-2xl bg-[#eef4f1] text-[#315e55]"><MessageCircle size={24} /></span>
-      <h2 className="mt-5 font-display text-xl font-bold text-[#29463f]">Select a conversation</h2>
-      <p className="mt-2 max-w-sm text-sm leading-6 text-[#748780]">Your chats with buyers and sellers will open here. Notifications from across UniMart are also stored in this inbox.</p>
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-8 text-center">
+      <span className="flex size-16 items-center justify-center rounded-[22px] bg-white text-[#315e55] shadow-[0_16px_40px_rgba(36,62,57,0.08)]">
+        <MessageCircle size={24} />
+      </span>
+      <p className="mt-5 font-display text-xl font-bold tracking-[-0.04em] text-[#243e39]">Select a conversation</p>
+      <p className="mt-1.5 max-w-[16rem] text-sm leading-6 text-[#748780]">Inbox on the left. Replies in the middle. Alerts stay on the right.</p>
+    </div>
+  )
+}
+
+function EmptyPane({ icon, title, hint, action }: { icon: ReactNode; title: string; hint?: string; action?: ReactNode }) {
+  return (
+    <div className="px-5 py-16 text-center">
+      <span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-[#f3f7f5] text-[#315e55]">
+        {icon}
+      </span>
+      <p className="mt-4 font-display text-base font-bold tracking-[-0.02em] text-[#29463f]">{title}</p>
+      {hint ? <p className="mt-1 text-sm text-[#748780]">{hint}</p> : null}
+      {action}
     </div>
   )
 }
@@ -678,121 +718,41 @@ function EmptyThread() {
 function AlertsPane({
   notifications,
   unreadNotes,
-  preferences,
-  filter,
-  onFilter,
   onOpen,
   onMarkAll,
-  onSavePreferences,
 }: {
   notifications: Notification[]
   unreadNotes: number
-  preferences: Notification['id'] extends string ? import('@/lib/types').NotificationPreferences : never
-  filter: NotificationFilter
-  onFilter: (value: NotificationFilter) => void
   onOpen: (item: Notification) => void
   onMarkAll: () => void
-  onSavePreferences: (updates: {
-    push_enabled?: boolean
-    push_messages?: boolean
-    push_sales?: boolean
-    push_favorites?: boolean
-    push_follows?: boolean
-    push_report_updates?: boolean
-    push_account_notices?: boolean
-  }) => void
 }) {
-  const unreadItems = notifications.filter((item) => !item.read_at)
-  const readItems = notifications.filter((item) => item.read_at)
-  const preferencePills = [
-    { key: 'push_messages', label: 'Messages' },
-    { key: 'push_sales', label: 'Sales' },
-    { key: 'push_favorites', label: 'Favorites' },
-    { key: 'push_follows', label: 'Follows' },
-  ] as const
-
   return (
-    <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-[24px] border border-[#e5eae7] bg-white shadow-[0_12px_36px_rgba(36,62,57,0.05)] sm:rounded-[26px]">
-      <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[#eef3f0] px-4 py-4">
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#d1734b]">Inbox</p>
-          <h2 className="mt-1 font-display text-lg font-bold text-[#243e39]">Notifications</h2>
-          <p className="mt-1 text-[12px] text-[#8b9994]">{unreadNotes ? `${unreadNotes} unread` : 'You are caught up'}</p>
-        </div>
-        <button type="button" onClick={onMarkAll} disabled={!unreadNotes} className="inline-flex h-10 items-center gap-1.5 rounded-2xl border border-[#e5eae7] px-3 text-[11px] font-bold text-[#638076] hover:bg-[#f7fbf9] disabled:cursor-not-allowed disabled:opacity-45">
-          <CheckCheck size={14} /> Read all
-        </button>
-      </div>
-      <div className="shrink-0 border-b border-[#eef3f0] px-4 py-3">
-        <div className="flex flex-wrap gap-1.5">
-          {([
-            { id: 'all', label: 'All' },
-            { id: 'unread', label: unreadNotes ? `Unread (${unreadNotes})` : 'Unread' },
-            { id: 'messages', label: 'Messages' },
-            { id: 'activity', label: 'Activity' },
-            { id: 'account', label: 'Account' },
-          ] as { id: NotificationFilter; label: string }[]).map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => onFilter(item.id)}
-              className={`h-9 rounded-full px-3 text-[11px] font-bold ${filter === item.id ? 'bg-[#315e55] text-white' : 'border border-[#e5eae7] text-[#638076] hover:bg-[#f7fbf9]'}`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        <div className="mb-2 rounded-2xl border border-[#eef3f0] bg-[#fbfcfb] px-3 py-3">
-          <div className="flex items-center justify-between gap-3">
+    <aside className="flex h-full min-h-0 flex-col overflow-hidden bg-white">
+      <header className="shrink-0 border-b border-[#eef3f0] px-4 py-4 sm:px-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-2">
+            <Link href={marketPaths.messages} aria-label="Back to chats" className={`${iconBtn()} mt-0.5 xl:hidden`}>
+              <ArrowLeft size={16} />
+            </Link>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#8b9994]">Preferences</p>
-              <p className="mt-1 text-sm font-semibold text-[#243e39]">
-                {preferences.push_enabled ? 'Push enabled' : 'Push disabled'}
-              </p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#d1734b]">Activity</p>
+              <h2 className="mt-1 font-display text-[1.35rem] font-bold tracking-[-0.04em] text-[#243e39]">Alerts</h2>
             </div>
-            <button
-              type="button"
-              onClick={() => onSavePreferences({ push_enabled: !preferences.push_enabled })}
-              className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[11px] font-bold ${
-                preferences.push_enabled
-                  ? 'bg-[#315e55] text-white'
-                  : 'border border-[#e5eae7] bg-white text-[#638076]'
-              }`}
-            >
-              <Cog size={13} />
-              {preferences.push_enabled ? 'On' : 'Off'}
-            </button>
           </div>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {preferencePills.map((item) => {
-              const active = preferences[item.key as keyof typeof preferences] === true
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  disabled={!preferences.push_enabled}
-                  onClick={() =>
-                    onSavePreferences({
-                      [item.key]: !active,
-                    })
-                  }
-                  className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
-                    active
-                      ? 'bg-[#edf6f1] text-[#315e55]'
-                      : 'border border-[#e5eae7] bg-white text-[#8b9994]'
-                  } disabled:opacity-45`}
-                >
-                  {item.label}
-                </button>
-              )
-            })}
-          </div>
+          <button
+            type="button"
+            onClick={onMarkAll}
+            disabled={!unreadNotes}
+            className="mt-1 inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-bold text-[#315e55] transition hover:bg-[#f1f6f3] disabled:opacity-35"
+          >
+            <CheckCheck size={14} />
+            Read
+          </button>
         </div>
-
-        {unreadItems.length ? <p className="px-3 pb-2 pt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#9aa7a2]">New</p> : null}
-        {unreadItems.map((item) => {
+        <p className="mt-2 text-[12px] text-[#8b9994]">{unreadNotes ? `${unreadNotes} new` : 'You are up to date'}</p>
+      </header>
+      <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+        {notifications.map((item) => {
           const Icon = notificationIcon(item.type)
           const unread = !item.read_at
           return (
@@ -800,61 +760,27 @@ function AlertsPane({
               key={item.id}
               type="button"
               onClick={() => onOpen(item)}
-              className={`mb-1 flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition ${unread ? 'bg-[#fff8f4] hover:bg-[#fff1e9]' : 'hover:bg-[#f6f9f8]'}`}
+              className={`mb-1 flex w-full items-start gap-3 rounded-[18px] px-2.5 py-3 text-left transition ${
+                unread ? 'bg-[#fff8f4]' : 'hover:bg-[#f7faf9]'
+              }`}
             >
-              <span className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl ${unread ? 'bg-[#f8eee7] text-[#d1734b]' : 'bg-[#eef4f1] text-[#315e55]'}`}>
-                <Icon size={15} />
+              <span className={`mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-2xl ${unread ? 'bg-[#f8eee7] text-[#d1734b]' : 'bg-[#f3f7f5] text-[#315e55]'}`}>
+                <Icon size={16} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="flex items-start justify-between gap-2">
-                  <span className="min-w-0">
-                    <span className={`block truncate text-sm ${unread ? 'font-bold text-[#243e39]' : 'font-semibold text-[#29463f]'}`}>{item.title}</span>
-                    <span className="mt-1 inline-flex rounded-full bg-white/80 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em] text-[#8b9994]">
-                      {item.type.replace('_', ' ')}
-                    </span>
-                  </span>
+                <span className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#9aa7a2]">{notificationKind(item.type)}</span>
                   <span className="shrink-0 text-[10px] text-[#9aa7a2]">{timeAgo(item.created_at)}</span>
                 </span>
-                <span className="mt-1 block line-clamp-2 text-[12px] leading-5 text-[#748780]">{item.body}</span>
+                <span className={`mt-0.5 block truncate text-[13px] ${unread ? 'font-bold text-[#243e39]' : 'font-semibold text-[#29463f]'}`}>{item.title}</span>
+                <span className="mt-0.5 block line-clamp-2 text-[12px] leading-5 text-[#748780]">{item.body}</span>
               </span>
-              {unread ? <span className="mt-2 size-2 shrink-0 rounded-full bg-[#d1734b]" /> : null}
-            </button>
-          )
-        })}
-        {readItems.length ? <p className="px-3 pb-2 pt-4 text-[10px] font-bold uppercase tracking-[0.14em] text-[#9aa7a2]">Earlier</p> : null}
-        {readItems.map((item) => {
-          const Icon = notificationIcon(item.type)
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => onOpen(item)}
-              className="mb-1 flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition hover:bg-[#f6f9f8]"
-            >
-              <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#eef4f1] text-[#315e55]">
-                <Icon size={15} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex items-start justify-between gap-2">
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-semibold text-[#29463f]">{item.title}</span>
-                    <span className="mt-1 inline-flex rounded-full bg-[#f5f8f6] px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em] text-[#8b9994]">
-                      {item.type.replace('_', ' ')}
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-[10px] text-[#9aa7a2]">{timeAgo(item.created_at)}</span>
-                </span>
-                <span className="mt-1 block line-clamp-2 text-[12px] leading-5 text-[#748780]">{item.body}</span>
-              </span>
+              {unread ? <span className="mt-2 size-1.5 shrink-0 rounded-full bg-[#d1734b]" /> : null}
             </button>
           )
         })}
         {!notifications.length ? (
-          <div className="px-4 py-16 text-center">
-            <Bell className="mx-auto text-[#d1734b]" size={22} />
-            <p className="mt-3 text-sm font-bold text-[#29463f]">No notifications yet.</p>
-            <p className="mt-1 text-sm leading-6 text-[#748780]">Messages, listing activity, report updates, and account notices will land here.</p>
-          </div>
+          <EmptyPane icon={<Bell size={20} />} title="No alerts" hint="New activity will land here." />
         ) : null}
       </div>
     </aside>

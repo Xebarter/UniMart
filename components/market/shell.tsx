@@ -46,15 +46,10 @@ export function MarketShell({ children }: { children: React.ReactNode }) {
             )}
             {profile?.account_status === 'suspended' || profile?.account_status === 'banned' ? (
               <RestrictedAccount status={profile.account_status} />
-            ) : view === 'messages' ? (
-              <div className="pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
-                {children}
-                <MarketFooter />
-              </div>
             ) : (
               <div className="pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
                 {children}
-                <MarketFooter />
+                {view === 'messages' ? null : <MarketFooter />}
               </div>
             )}
           </MobileTabSwipe>
