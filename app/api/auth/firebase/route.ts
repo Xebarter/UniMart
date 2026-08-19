@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { isUploadedAvatar, jsonError, jsonOk, parseJson } from '@/lib/api/http'
-import { phoneBridgeEmail, phoneDisplayName } from '@/lib/phone'
+import { hasContactPhone, isValidE164, phoneBridgeEmail, phoneDisplayName } from '@/lib/phone'
 
 export const runtime = 'nodejs'
 
@@ -68,6 +68,44 @@ async function syncGoogleProfile(
   if (photoUrl && !isUploadedAvatar(profile.avatar_url)) {
     await admin.from('profiles').update({ avatar_url: photoUrl }).eq('id', userId)
   }
+}
+
+async function syncPhoneProfile(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  phone: string,
+  metadata: Record<string, unknown>,
+) {
+  if (!isValidE164(phone)) return
+
+  try {
+    await admin.auth.admin.updateUserById(userId, {
+      phone,
+      phone_confirm: true,
+      user_metadata: {
+        ...metadata,
+        phone,
+        auth_provider: 'phone',
+      },
+    })
+  } catch (err) {
+    console.error('[unimart:firebase-auth] phone', err instanceof Error ? err.message : err)
+  }
+
+  const { data: profile } = await admin.from('profiles').select('id, phone_primary').eq('id', userId).maybeSingle()
+  if (!profile) {
+    await admin.from('profiles').insert({
+      id: userId,
+      display_name: String(metadata.display_name || phoneDisplayName(phone)),
+      phone_primary: phone,
+    })
+    return
+  }
+  if (hasContactPhone(profile.phone_primary)) return
+  await admin
+    .from('profiles')
+    .update({ phone_primary: phone, updated_at: new Date().toISOString() })
+    .eq('id', userId)
 }
 
 export async function POST(request: Request) {
@@ -148,16 +186,22 @@ export async function POST(request: Request) {
 
   const userId = authData.user?.id
   if (userId) {
+    const mergedMeta = { ...(authData.user?.user_metadata ?? {}), ...metadata }
     await syncGoogleProfile(
       admin,
       userId,
       displayName,
       photoUrl,
       firebaseUser.localId,
-      authData.user?.user_metadata ?? {},
+      mergedMeta,
     ).catch((err) => {
       console.error('[unimart:google-auth] profile', err instanceof Error ? err.message : err)
     })
+    if (phone) {
+      await syncPhoneProfile(admin, userId, phone, mergedMeta).catch((err) => {
+        console.error('[unimart:firebase-auth] profile-phone', err instanceof Error ? err.message : err)
+      })
+    }
   }
 
   return jsonOk({ ok: true })

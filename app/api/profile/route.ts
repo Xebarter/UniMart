@@ -1,5 +1,5 @@
 import { authPhotoUrl, dbError, jsonError, jsonOk, parseJson, requireUser } from '@/lib/api/http'
-import { hasContactPhone, isValidE164 } from '@/lib/phone'
+import { authContactPhone, hasContactPhone, isValidE164 } from '@/lib/phone'
 import {
   isStudentNumberTakenError,
   normalizeStudentNumber,
@@ -23,7 +23,7 @@ export async function GET() {
       .maybeSingle()
     profile = updated ?? { ...profile, avatar_url: fallback }
   }
-  const authPhone = auth.user.phone?.trim() || ''
+  const authPhone = authContactPhone(auth.user)
   if (profile && !hasContactPhone(profile.phone_primary) && isValidE164(authPhone)) {
     const { data: updated } = await auth.supabase
       .from('profiles')

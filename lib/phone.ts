@@ -57,6 +57,20 @@ export function hasContactPhone(value?: string | null) {
   return isValidE164((value ?? '').trim())
 }
 
+export function authContactPhone(user: {
+  phone?: string | null
+  user_metadata?: Record<string, unknown> | null
+} | null | undefined) {
+  if (!user) return ''
+  const meta = user.user_metadata ?? {}
+  const candidates = [user.phone, meta.phone, meta.phone_number, meta.phoneNumber]
+  for (const value of candidates) {
+    const phone = typeof value === 'string' ? value.trim() : ''
+    if (isValidE164(phone)) return phone
+  }
+  return ''
+}
+
 export function matchPhoneCountry(e164: string) {
   const digits = e164.replace(/\D/g, '')
   const ranked = [...PHONE_COUNTRIES].sort((left, right) => right.dial.length - left.dial.length)
