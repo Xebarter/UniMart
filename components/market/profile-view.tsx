@@ -26,6 +26,7 @@ import { loginHref } from '@/lib/auth'
 import { signOutUniMart } from '@/lib/auth-session'
 import { colorFromSeed, isFeatured } from '@/lib/format'
 import { marketPaths } from '@/lib/market-paths'
+import { rankListings } from '@/lib/search'
 import { formatPhoneDisplay, hasContactPhone } from '@/lib/phone'
 import type { FollowedProfile, Profile } from '@/lib/types'
 
@@ -71,7 +72,7 @@ export function ProfileView() {
   const [photoBusy, setPhotoBusy] = useState(false)
 
   const liveListings = useMemo(
-    () => myListings.filter((item) => item.status === 'active'),
+    () => rankListings(myListings.filter((item) => item.status === 'active'), ''),
     [myListings],
   )
   const stats = useMemo(() => ({
@@ -272,7 +273,7 @@ export function ProfileView() {
       <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           { label: 'Live listings', value: stats.live },
-          { label: 'Saved', value: stats.saved },
+          { label: 'Featured', value: stats.featured },
           { label: 'Listing views', value: stats.views },
           { label: 'Sold', value: stats.sold },
         ].map((item) => (

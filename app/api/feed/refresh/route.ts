@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getPaytotaPurchase, isPaytotaFailed, isPaytotaPaid } from '@/lib/payments/paytota'
+import { getPaytotaPurchase, interpretPaytotaPurchase } from '@/lib/payments/paytota'
 import { reconcileDpoPayment } from '@/lib/payments/dpo'
 
 export const runtime = 'nodejs'
@@ -24,13 +24,14 @@ export async function GET(request: Request) {
     try {
       if (payment.provider === 'paytota' && payment.provider_payment_id) {
         const purchase = await getPaytotaPurchase(payment.provider_payment_id)
-        const providerStatus = purchase?.purchase?.status || purchase?.status
-        if (isPaytotaPaid(providerStatus)) {
+        const outcome = interpretPaytotaPurchase(purchase)
+        if (outcome === 'paid') {
           await admin.rpc('fulfill_payment', { p_payment_id: payment.id })
           reconciled += 1
-        } else if (isPaytotaFailed(providerStatus)) {
+        } else if (outcome === 'failed') {
+          const providerStatus = (purchase?.status ?? '').toLowerCase()
           await admin.from('payments').update({
-            status: (providerStatus ?? '').toLowerCase() === 'expired' ? 'expired' : (providerStatus ?? '').toLowerCase().startsWith('cancel') ? 'cancelled' : 'failed',
+            status: providerStatus === 'expired' ? 'expired' : providerStatus.startsWith('cancel') ? 'cancelled' : 'failed',
             raw: purchase ?? payment.raw,
           }).eq('id', payment.id)
         }

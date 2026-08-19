@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { Store, UserMinus, UserPlus } from 'lucide-react'
@@ -10,6 +10,7 @@ import { useMarket } from '@/components/market/provider'
 import { api } from '@/lib/api-client'
 import { loginHref } from '@/lib/auth'
 import { marketPaths } from '@/lib/market-paths'
+import { rankListings } from '@/lib/search'
 import type { Listing, Shop } from '@/lib/types'
 
 export default function PublicShopPage() {
@@ -22,6 +23,7 @@ export default function PublicShopPage() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const isOwner = Boolean(profile && shop && profile.id === shop.owner_id)
+  const ranked = useMemo(() => rankListings(listings, ''), [listings])
 
   useEffect(() => {
     if (!slug) return
@@ -100,7 +102,7 @@ export default function PublicShopPage() {
 
       <h2 className="mt-8 font-display text-xl font-bold text-[#29463f]">In this shop</h2>
       <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {listings.map((item) => (
+        {ranked.map((item) => (
           <ListingCard key={item.id} item={item} saved={saved.includes(item.id)} toggleSaved={toggleSaved} hideSeller />
         ))}
       </div>

@@ -11,7 +11,7 @@ import { useAdminResource } from '@/components/admin/use-resource'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { adminPaths } from '@/lib/admin/paths'
 import { api } from '@/lib/api-client'
-import { formatDateTime, formatUGX } from '@/lib/format'
+import { formatDateTime, formatUGX, isFeatured } from '@/lib/format'
 import type { Listing, Payment, Profile, Report, Shop } from '@/lib/types'
 
 type User360 = { data: Profile; shop: Shop | null; listings: Listing[]; reports: Report[]; payments: Payment[]; conversation_count: number }
@@ -87,7 +87,10 @@ export function UserDetailView() {
           <CardContent className="space-y-2">
             {user.listings.length ? user.listings.map((listing) => (
               <Link key={listing.id} href={adminPaths.listing(listing.id)} className="flex items-center justify-between rounded-xl px-1 py-1 hover:bg-[#f8fbf9]">
-                <span className="truncate text-sm font-semibold">{listing.title}</span>
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="truncate text-sm font-semibold">{listing.title}</span>
+                  {isFeatured(listing) ? <span className="shrink-0 rounded-full bg-[#fff2ec] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[#c86c48]">Featured</span> : null}
+                </span>
                 <StatusBadge value={listing.status} />
               </Link>
             )) : <p className="text-xs text-[#8b9994]">No listings.</p>}

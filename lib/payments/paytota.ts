@@ -19,8 +19,14 @@ export function paytotaMsisdn(e164: string) {
 export type PaytotaPurchase = {
   id: string
   status?: string
+  event_type?: string
+  marked_as_paid?: boolean
   checkout_url?: string
-  purchase?: { status?: string }
+  reference?: string
+  payment?: { paid_on?: number | string | null; amount?: number | null; status?: string }
+  purchase?: { status?: string; reference?: string }
+  status_history?: { status?: string }[]
+  transaction_data?: { attempts?: { successful?: boolean; error?: unknown }[] }
 }
 
 export type PaytotaExecuteResult = {
@@ -82,10 +88,13 @@ export async function executePaytotaCollection(purchaseId: string) {
 
 export async function getPaytotaPurchase(id: string) {
   const response = await fetch(gateUrl(`/api/v1/purchases/${id}/`), {
-    headers: { Authorization: `Bearer ${secret()}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${secret()}`, Accept: 'application/json' },
     cache: 'no-store',
   })
-  if (!response.ok) return null
+  if (!response.ok) {
+    console.error('[unimart:paytota-get]', id, response.status)
+    return null
+  }
   return (await response.json()) as PaytotaPurchase
 }
 
@@ -103,11 +112,29 @@ export function verifyPaytotaSignature(rawBody: string, signature: string | null
 }
 
 export function isPaytotaPaid(status?: string) {
-  const value = (status ?? '').toLowerCase()
-  return value === 'paid' || value === 'success' || value === 'completed' || value === 'captured'
+  const value = (status ?? '').toLowerCase().replace(/^purchase\./, '')
+  return value === 'paid' || value === 'success' || value === 'completed' || value === 'captured' || value === 'hold' || value === 'settled'
 }
 
 export function isPaytotaFailed(status?: string) {
-  const value = (status ?? '').toLowerCase()
-  return value === 'error' || value === 'failed' || value === 'cancelled' || value === 'canceled' || value === 'expired'
+  const value = (status ?? '').toLowerCase().replace(/^purchase\./, '')
+  return value === 'error' || value === 'failed' || value === 'payment_failure' || value === 'cancelled' || value === 'canceled' || value === 'expired'
+}
+
+export function interpretPaytotaPurchase(payload: PaytotaPurchase | null | undefined): 'paid' | 'pending' | 'failed' {
+  if (!payload) return 'pending'
+  const event = String(payload.event_type ?? '')
+  if (event === 'purchase.paid' || event === 'purchase.captured' || event === 'purchase.settled' || event === 'purchase.hold') return 'paid'
+  if (event === 'purchase.payment_failure' || event === 'purchase.cancelled') return 'failed'
+
+  // Root `status` is PurchaseStatus. Nested `purchase` is the cart and usually has no status.
+  const status = String(payload.status ?? '')
+  if (isPaytotaPaid(status)) return 'paid'
+  if (isPaytotaFailed(status)) return 'failed'
+
+  if (payload.marked_as_paid || payload.payment?.paid_on) return 'paid'
+  const history = payload.status_history ?? []
+  if (history.some((item) => isPaytotaPaid(item?.status))) return 'paid'
+
+  return 'pending'
 }

@@ -119,6 +119,11 @@ export function ListingCard({
       <div className={`flex min-w-0 items-start justify-between ${compact ? 'mb-1 gap-1.5' : 'mb-2 gap-3'}`}>
         <Link href={href} className="min-w-0 flex-1 text-left">
           <h3 className={`font-bold text-[#29463f] group-hover:text-[#315e55] ${compact ? 'line-clamp-2 text-[13px] leading-4' : 'truncate text-sm'}`}>{item.title}</h3>
+          {featured ? (
+            <span className={`inline-flex items-center gap-0.5 rounded-full bg-[#fff2ec] font-bold uppercase tracking-[0.08em] text-[#c86c48] ${compact ? 'mt-1 px-1.5 py-0.5 text-[9px]' : 'mt-1.5 px-2 py-0.5 text-[10px]'}`}>
+              <Sparkles size={compact ? 9 : 10} /> Featured
+            </span>
+          ) : null}
           <p className={`truncate font-bold text-[#d1734b] ${compact ? 'mt-1 text-xs' : 'mt-1 text-[13px]'}`}>
             {formatUGX(Number(item.price), item.currency)}
             {item.category === 'Rentals' && rentPeriodSuffix(item.rent_period) && (

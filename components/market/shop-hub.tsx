@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Archive, ExternalLink, Pencil, Plus, RefreshCw, Star } from 'lucide-react'
+import { Archive, ExternalLink, Pencil, Plus, RefreshCw, Sparkles, Star } from 'lucide-react'
 import { ListingPhoto } from '@/components/listing-photo'
 import { ListingCard } from '@/components/market/listing-card'
 import { PhoneContactGate } from '@/components/market/phone-contact-gate'
@@ -13,6 +13,7 @@ import { useMarket } from '@/components/market/provider'
 import { api } from '@/lib/api-client'
 import { formatUGX, isFeatured, rentPeriodSuffix } from '@/lib/format'
 import { marketPaths } from '@/lib/market-paths'
+import { rankListings } from '@/lib/search'
 import { isListingInShop } from '@/lib/shop'
 import type { Listing, ListingStatus, Shop } from '@/lib/types'
 
@@ -65,12 +66,12 @@ export function ShopHub({
     [myListings, shop.id],
   )
   const available = useMemo(
-    () => myListings.filter((item) => item.status === 'active' && !isListingInShop(item, shop.id)),
+    () => rankListings(myListings.filter((item) => item.status === 'active' && !isListingInShop(item, shop.id)), ''),
     [myListings, shop.id],
   )
   const liveCount = shopListings.filter((item) => item.status === 'active').length
   const shown = useMemo(
-    () => shopListings.filter((item) => matchesFilter(item, filter)),
+    () => rankListings(shopListings.filter((item) => matchesFilter(item, filter)), ''),
     [filter, shopListings],
   )
 
@@ -129,6 +130,11 @@ export function ShopHub({
         <Link href={marketPaths.postEdit(listing.id)} className={pill}>
           <Pencil size={13} strokeWidth={2.1} /> Edit
         </Link>
+        {live && featured && (
+          <span className={`${pill} cursor-default border-[#f0d4c6] bg-[#fff8f4] text-[#b9623e]`}>
+            <Sparkles size={13} strokeWidth={2.1} /> Featured
+          </span>
+        )}
         {live && !featured && (
           <button type="button" disabled={busy} onClick={() => { checkout.reset(); setFeatureId((current) => current === listing.id ? '' : listing.id) }} className={`${pill} border-[#f0d4c6] bg-[#fff8f4] text-[#b9623e] hover:border-[#e8c4b0]`}>
             <Star size={13} strokeWidth={2.1} /> Feature
@@ -263,7 +269,14 @@ export function ShopHub({
                   <div className="flex min-w-0 items-center gap-3 px-3 py-3 sm:gap-4 sm:px-5 sm:py-3.5">
                     <ListingPhoto listing={listing} alt="" className="size-14 shrink-0 rounded-[14px] sm:size-[4.5rem] sm:rounded-[16px]" />
                     <span className="min-w-0 flex-1 overflow-hidden">
-                      <span className="block truncate text-sm font-semibold tracking-[-0.01em] text-[#29463f] sm:text-[15px]">{listing.title}</span>
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span className="block truncate text-sm font-semibold tracking-[-0.01em] text-[#29463f] sm:text-[15px]">{listing.title}</span>
+                        {featured ? (
+                          <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-[#fff2ec] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em] text-[#c86c48]">
+                            <Sparkles size={9} /> Featured
+                          </span>
+                        ) : null}
+                      </span>
                       <span className="mt-0.5 block truncate text-[13px] font-semibold text-[#d1734b] sm:mt-1 sm:text-sm">
                         {formatUGX(Number(listing.price), listing.currency)}
                         {listing.category === 'Rentals' && rentPeriodSuffix(listing.rent_period) && (

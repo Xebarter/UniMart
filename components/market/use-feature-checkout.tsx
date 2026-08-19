@@ -3,14 +3,15 @@
 import { Check, CreditCard, Smartphone } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api-client'
+import { isFeatured } from '@/lib/format'
 import { formatPhoneDisplay, hasContactPhone } from '@/lib/phone'
 import { useMarket } from '@/components/market/provider'
 
 export type FeatureCheckoutPhase = 'idle' | 'sending' | 'waiting' | 'confirming' | 'success' | 'failed'
 
-const POLL_MS = 1500
-const POLL_ATTEMPTS = 80
-const CONFIRMING_AFTER_MS = 8000
+const POLL_MS = 2000
+const POLL_ATTEMPTS = 90
+const CONFIRMING_AFTER_MS = 12000
 const SUCCESS_HOLD_MS = 1200
 
 function FeatureProgress({
@@ -133,9 +134,20 @@ export function useFeatureCheckout({
       if (cancelled) return
       if (attempts < POLL_ATTEMPTS) window.setTimeout(() => { void tick() }, POLL_MS)
       else {
+        try {
+          const listing = await api.listing(listingIdRef.current)
+          if (!cancelled && isFeatured(listing.data)) {
+            window.clearTimeout(confirmTimer)
+            await finishPaid()
+            return
+          }
+        } catch {
+          // Listing lookup is only a last check for a late Paytota webhook.
+        }
+        if (cancelled) return
         setPending(null)
         setPhase('failed')
-        setError('Didn’t go through')
+        setError('Couldn’t confirm yet. If you paid, the listing will feature shortly.')
       }
     }
     void tick()
