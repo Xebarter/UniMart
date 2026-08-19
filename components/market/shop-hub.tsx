@@ -44,7 +44,7 @@ export function ShopHub({
   onEditShop: () => void
   onCompose?: () => void
 }) {
-  const { profile, myListings, loading, notify, updateMyListing, saved, toggleSaved, refresh } = useMarket()
+  const { profile, myListings, loading, notify, updateMyListing, saved, toggleSaved } = useMarket()
   const [filter, setFilter] = useState<ShopFilter>('all')
   const [busyId, setBusyId] = useState('')
   const [featureId, setFeatureId] = useState('')
@@ -55,7 +55,6 @@ export function ShopHub({
     onPaid: () => {
       notify('Featured for 7 days.')
       setFeatureId('')
-      void refresh()
     },
     onNeedPhone: () => setPhoneGate(true),
   })

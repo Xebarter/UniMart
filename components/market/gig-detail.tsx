@@ -55,7 +55,6 @@ export function GigDetail({ listing }: { listing: Listing }) {
     onPaid: () => {
       notify('Featured for 7 days.')
       setPayOpen(false)
-      void refresh()
     },
     onNeedPhone: () => {
       setPendingAction('feature')
@@ -209,7 +208,7 @@ export function GigDetail({ listing }: { listing: Listing }) {
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] lg:gap-8">
         <div className="min-w-0">
           {photos.length > 0 && (
-            <div className="overflow-hidden rounded-[24px] border border-[#e5eae7] bg-white shadow-[0_12px_40px_rgba(36,62,57,0.06)] sm:rounded-[28px]">
+            <div className={`overflow-hidden rounded-[24px] border bg-white sm:rounded-[28px] ${featured ? 'border-[#e8b89a] shadow-[0_16px_48px_rgba(209,115,75,0.16)] ring-1 ring-[#d1734b]/20' : 'border-[#e5eae7] shadow-[0_12px_40px_rgba(36,62,57,0.06)]'}`}>
               <div className="relative">
                 <ListingPhoto src={activePhoto} listing={listing} alt={listing.title} className="aspect-[16/9] w-full sm:aspect-[2/1]" />
                 <div className="absolute inset-x-0 top-0 flex items-start justify-between p-3 sm:p-4">
@@ -485,9 +484,8 @@ export function GigDetail({ listing }: { listing: Listing }) {
             <button type="button" aria-label="Close checkout" onClick={() => { checkout.reset(); setPayOpen(false) }} className="absolute right-4 top-4 flex size-9 items-center justify-center rounded-full border border-[#e5eae7] text-[#687b75] transition hover:bg-[#f7fbf9]">
               <X size={16} />
             </button>
-            <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#d1734b]">Feature gig</p>
-            <h2 className="mt-2 font-display text-2xl font-bold tracking-[-0.04em] text-[#243e39]">Get more eyes on this post</h2>
-            <p className="mt-2 text-sm leading-6 text-[#71827b]">Featured gigs appear first in search. Mobile money is collected directly on your phone. Cards use DPO.</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#d1734b]">Feature</p>
+            <h2 className="mt-2 font-display text-2xl font-bold tracking-[-0.04em] text-[#243e39]">Get more views</h2>
             {featurePrice != null && (
               <p className="mt-3 font-display text-xl font-bold tracking-[-0.03em] text-[#243e39]">
                 {formatUGX(featurePrice)}

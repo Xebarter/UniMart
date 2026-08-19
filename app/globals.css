@@ -116,6 +116,11 @@ body:has([data-auth-shell]) { padding-bottom: 0; }
   to { transform: scale(1); opacity: 1; }
 }
 .post-success-mark { animation: unimart-check-pop 420ms cubic-bezier(0.22, 1, 0.36, 1); }
+@keyframes feature-progress-slide {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(320%); }
+}
+.feature-progress-bar { animation: feature-progress-slide 1.35s ease-in-out infinite; }
 @keyframes unimart-search-in {
   from { opacity: 0.72; transform: translateY(-6px); }
   to { opacity: 1; transform: translateY(0); }

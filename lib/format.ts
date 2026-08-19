@@ -43,7 +43,6 @@ export function isFeatured(listing: Pick<Listing, 'featured_until'>) {
 }
 
 export function listingTag(listing: Listing) {
-  if (isFeatured(listing)) return 'Featured'
   if (listing.profiles?.verified) return 'Verified seller'
   const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
   if (new Date(listing.created_at).getTime() > weekAgo) return 'New this week'

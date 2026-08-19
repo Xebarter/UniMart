@@ -2,11 +2,11 @@
 
 import type { ReactNode } from 'react'
 import Link from 'next/link'
-import { Heart, MapPin, X } from 'lucide-react'
+import { Heart, MapPin, Sparkles, X } from 'lucide-react'
 import { Avatar } from '@/components/market/avatar'
 import { ListingPhoto } from '@/components/listing-photo'
 import { ListingShareButton } from '@/components/market/listing-share'
-import { colorFromSeed, formatUGX, listingTag, rentPeriodSuffix } from '@/lib/format'
+import { colorFromSeed, formatUGX, isFeatured, listingTag, rentPeriodSuffix } from '@/lib/format'
 import { marketPaths } from '@/lib/market-paths'
 import type { Listing } from '@/lib/types'
 
@@ -44,12 +44,18 @@ function PhotoBadges({
   className: string
 }) {
   const statusLabel = item.status === 'unavailable' ? 'Unavailable' : item.status === 'sold' ? 'Sold' : null
+  const featured = isFeatured(item)
   const chip = compact
     ? 'px-1.5 py-0.5 text-[9px] sm:px-2.5 sm:py-1 sm:text-[10px]'
     : 'px-2.5 py-1 text-[10px]'
   return (
     <div className={`absolute z-[2] flex flex-wrap gap-1 ${className}`}>
       <span className={`rounded-full bg-white/90 font-bold text-[#52635e] backdrop-blur-sm ${chip}`}>{item.category}</span>
+      {featured ? (
+        <span className={`inline-flex items-center gap-0.5 rounded-full bg-[#d1734b] font-bold text-white shadow-sm ${chip}`}>
+          <Sparkles size={compact ? 9 : 11} /> Featured
+        </span>
+      ) : null}
       {statusLabel ? (
         <span className={`rounded-full bg-[#29463f] font-bold text-white ${chip}`}>{statusLabel}</span>
       ) : null}
@@ -86,6 +92,10 @@ export function ListingCard({
 }) {
   const seller = item.profiles?.display_name ?? 'Seller'
   const href = marketPaths.listing(item.id)
+  const featured = isFeatured(item)
+  const cardShell = featured
+    ? 'border-[#e8b89a] shadow-[0_8px_28px_rgba(209,115,75,0.14)]'
+    : 'border-[#e5eae7] shadow-[0_2px_8px_rgba(38,64,57,0.03)]'
   const saveControl = hideSave ? null : (
     <button
       type="button"
@@ -138,12 +148,12 @@ export function ListingCard({
 
   if (row) {
     return (
-      <article className="group min-w-0 w-full max-w-full overflow-hidden rounded-2xl border border-[#e5eae7] bg-white shadow-[0_2px_8px_rgba(38,64,57,0.03)] sm:transition sm:hover:-translate-y-0.5 sm:hover:shadow-[0_10px_24px_rgba(38,64,57,0.09)]">
+      <article className={`group min-w-0 w-full max-w-full overflow-hidden rounded-2xl border bg-white ${cardShell} sm:transition sm:hover:-translate-y-0.5 sm:hover:shadow-[0_10px_24px_rgba(38,64,57,0.09)]`}>
         <div className="flex items-center sm:block">
           <div className="relative size-[6.5rem] shrink-0 sm:h-auto sm:w-full sm:size-auto">
             <Link href={href} className="block size-full text-left sm:h-auto">
               <ListingPhoto listing={item} alt={item.title} className="size-full sm:aspect-[4/3] sm:h-auto sm:w-full" />
-              <PhotoBadges item={item} className="left-3 top-3 hidden sm:flex" />
+              <PhotoBadges item={item} compact className="left-1.5 top-1.5 sm:left-3 sm:top-3" />
             </Link>
             {onRemove && (
               <RemoveButton
@@ -175,7 +185,7 @@ export function ListingCard({
   }
 
   return (
-    <article className={`group min-w-0 overflow-hidden border border-[#e5eae7] bg-white shadow-[0_2px_8px_rgba(38,64,57,0.03)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(38,64,57,0.09)] ${compact ? 'rounded-xl sm:rounded-2xl' : 'rounded-2xl'}`}>
+    <article className={`group min-w-0 overflow-hidden border bg-white transition hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(38,64,57,0.09)] ${cardShell} ${compact ? 'rounded-xl sm:rounded-2xl' : 'rounded-2xl'}`}>
       <div className="relative">
         <Link href={href} className="block w-full text-left">
           <ListingPhoto listing={item} alt={item.title} className={`${compact ? 'aspect-square sm:aspect-[4/3]' : 'aspect-[4/3]'} w-full`} />

@@ -31,10 +31,10 @@ export function ListingPageClient({ initialListing }: { initialListing?: Listing
   }, [id])
 
   useEffect(() => {
-    const next = myListings.find((item) => item.id === id)
+    const next = myListings.find((item) => item.id === id) ?? listings.find((item) => item.id === id)
     if (!next) return
-    setListing((current) => current ? { ...current, ...next } : next)
-  }, [id, myListings])
+    setListing((current) => (current ? { ...current, ...next } : next))
+  }, [id, listings, myListings])
 
   if (error && !listing) {
     return (

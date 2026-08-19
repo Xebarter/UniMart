@@ -1,4 +1,5 @@
 import { LISTING_CATEGORIES, type Listing, type ListingCategory, type Shop } from '@/lib/types'
+import { isFeatured } from '@/lib/format'
 
 export type MarketCategory = 'All' | ListingCategory | 'Shops'
 
@@ -30,9 +31,13 @@ export function scoreListing(item: Listing, query: string) {
 
 export function rankListings(listings: Listing[], query: string) {
   const q = query.trim()
-  const matched = q ? listings.filter((item) => matchesQuery(item, q)) : listings
-  if (!q) return matched
-  return [...matched].sort((a, b) => scoreListing(b, q) - scoreListing(a, q))
+  const matched = q ? listings.filter((item) => matchesQuery(item, q)) : [...listings]
+  return matched.sort((a, b) => {
+    const featuredDelta = Number(isFeatured(b)) - Number(isFeatured(a))
+    if (featuredDelta) return featuredDelta
+    if (!q) return 0
+    return scoreListing(b, q) - scoreListing(a, q)
+  })
 }
 
 export function matchingCategories(listings: Listing[], query: string) {
